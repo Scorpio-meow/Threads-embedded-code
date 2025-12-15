@@ -92,6 +92,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      align-items: center;
       border-bottom: 1px solid var(--border-color);
     }
 
@@ -130,6 +131,42 @@
       background: rgba(255, 48, 64, 0.05);
     }
 
+    .btn-small {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    .selection-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-right: 12px;
+      border-right: 1px solid var(--border-color);
+      margin-right: 8px;
+    }
+
+    .select-all-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .select-all-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #000;
+    }
+
+    .selection-info {
+      font-size: 12px;
+      color: #0095f6;
+      font-weight: 600;
+    }
+
     .sort-container {
       display: flex;
       align-items: center;
@@ -164,6 +201,47 @@
       box-shadow: 0 0 0 1px #000;
     }
 
+    .filter-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-left: 12px;
+      border-left: 1px solid var(--border-color);
+    }
+
+    .filter-container label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .filter-select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: #fff;
+      font-size: 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+      max-width: 120px;
+    }
+
+    .filter-select:hover {
+      border-color: #ccc;
+    }
+
+    .filter-select:focus {
+      border-color: #000;
+      box-shadow: 0 0 0 1px #000;
+    }
+
+    .filter-value-container {
+      display: flex;
+      align-items: center;
+    }
+
     .content {
       padding: 16px;
       display: flex;
@@ -178,8 +256,24 @@
       border: 1px solid var(--border-color);
       border-radius: 16px;
       padding: 16px;
+      padding-left: 44px;
       transition: all 0.2s;
       position: relative;
+    }
+
+    .article-card.selected {
+      background: rgba(0, 149, 246, 0.05);
+      border-color: #0095f6;
+    }
+
+    .article-checkbox {
+      position: absolute;
+      left: 14px;
+      top: 18px;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #0095f6;
     }
 
     .article-card:hover {
@@ -414,6 +508,14 @@
     <input type="text" id="searchInput" placeholder="搜尋程式碼、語言或作者...">
   </div>
   <div class="controls">
+    <div class="selection-container">
+      <label class="select-all-label">
+        <input type="checkbox" id="selectAllCheckbox">
+        <span>全選</span>
+      </label>
+      <span id="selectionInfo" class="selection-info" style="display: none;"></span>
+      <button class="btn btn-small" id="clearSelectionBtn">清除選取</button>
+    </div>
     <div class="sort-container">
       <label for="sortSelect">排序：</label>
       <select id="sortSelect" class="sort-select">
@@ -426,6 +528,20 @@
         <option value="codeCount-desc">程式碼數量 (多到少)</option>
         <option value="codeCount-asc">程式碼數量 (少到多)</option>
       </select>
+    </div>
+    <div class="filter-container">
+      <label for="filterSelect">篩選：</label>
+      <select id="filterSelect" class="filter-select">
+        <option value="all">全部文章</option>
+        <option value="author">按作者</option>
+        <option value="tag">按標籤</option>
+        <option value="noTimestamp">無發文時間</option>
+      </select>
+      <div id="filterValueContainer" class="filter-value-container" style="display: none;">
+        <select id="filterValueSelect" class="filter-select">
+          <option value="">全部</option>
+        </select>
+      </div>
     </div>
     <button class="btn btn-export" id="exportBtn" title="匯出簡易版 (embed code only)">匯出</button>
     <button class="btn btn-export" id="exportFullBtn" title="匯出完整版 (含時間/作者/內容)">完整匯出</button>

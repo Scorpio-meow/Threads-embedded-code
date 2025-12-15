@@ -1,6 +1,9 @@
 let allArticles = [];
 let filteredArticles = [];
 let currentSort = 'savedAt-desc';
+let selectedArticleIds = new Set();
+let currentFilter = 'all';
+let currentFilterValue = '';
 function refreshEmbedCode(articleId) {
   const article = allArticles.find(a => a.id === articleId);
   if (!article || !article.postLink) {
@@ -28,17 +31,21 @@ function refreshEmbedCode(articleId) {
   return true;
 }
 function refreshAllEmbedCodes() {
-  if (allArticles.length === 0) {
+  const targetArticles = selectedArticleIds.size > 0
+    ? allArticles.filter(a => selectedArticleIds.has(a.id))
+    : allArticles;
+  if (targetArticles.length === 0) {
     showToast('沒有文章可以重新生成');
     return;
   }
-  if (!confirm(`確定要重新生成全部 ${allArticles.length} 篇文章的嵌入代碼嗎？`)) {
+  const selectionText = selectedArticleIds.size > 0 ? '選取的' : '全部';
+  if (!confirm(`確定要重新生成${selectionText} ${targetArticles.length} 篇文章的嵌入代碼嗎？`)) {
     return;
   }
-  showToast(`正在重新生成 ${allArticles.length} 篇文章...`);
+  showToast(`正在重新生成 ${targetArticles.length} 篇文章...`);
   let successCount = 0;
   let failCount = 0;
-  allArticles.forEach(article => {
+  targetArticles.forEach(article => {
     if (!article.postLink) {
       failCount++;
       return;
@@ -54,31 +61,33 @@ function refreshAllEmbedCodes() {
   });
   chrome.storage.local.set({ savedArticles: allArticles }).then(() => {
     filteredArticles = [...allArticles];
+    sortArticles();
     renderArticles();
     showToast(`完成！成功: ${successCount}, 失敗: ${failCount}`);
   });
 }
 async function updateAllTimestamps() {
-  if (allArticles.length === 0) {
+  const baseArticles = selectedArticleIds.size > 0
+    ? allArticles.filter(a => selectedArticleIds.has(a.id))
+    : allArticles;
+  if (baseArticles.length === 0) {
     showToast('沒有文章可以更新');
     return;
   }
-  const articlesNeedingUpdate = allArticles.filter(a => a.postLink);
+  const articlesNeedingUpdate = baseArticles.filter(a => a.postLink);
   if (articlesNeedingUpdate.length === 0) {
     showToast('沒有有效的文章連結');
     return;
   }
-  if (!confirm(`確定要更新 ${articlesNeedingUpdate.length} 篇文章的時間和內文嗎？\n\n這會開啟分頁逐一訪問每篇文章，可能需要一些時間。\n分頁會在完成後自動關閉。`)) {
+  const selectionText = selectedArticleIds.size > 0 ? '選取的' : '';
+  if (!confirm(`確定要更新${selectionText} ${articlesNeedingUpdate.length} 篇文章的時間和內文嗎？\n\n這會開啟分頁逐一訪問每篇文章，可能需要一些時間。\n分頁會在完成後自動關閉。`)) {
     return;
   }
   showToast(`開始更新 ${articlesNeedingUpdate.length} 篇文章...`);
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  for (const article of allArticles) {
-    if (!article.postLink) {
-      continue;
-    }
+  for (const article of articlesNeedingUpdate) {
     currentIndex++;
     try {
       const postInfo = await fetchPostInfoViaTab(article.postLink);
@@ -257,24 +266,33 @@ async function loadArticles() {
   filteredArticles = [...allArticles];
   sortArticles();
   renderArticles();
+  // 載入後更新篩選選項
+  updateFilterValueOptions();
 }
 function setupEventListeners() {
   document.getElementById('searchInput').addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    filteredArticles = allArticles.filter(article => {
-      const contentMatch = (article.content || '').toLowerCase().includes(searchTerm);
-      const authorMatch = (article.author || '').toLowerCase().includes(searchTerm);
-      const tagsMatch = (article.tags || []).some(tag => (tag || '').toLowerCase().includes(searchTerm));
-      const codeMatch = (article.codeBlocks || []).some(block =>
-        (block.code || '').toLowerCase().includes(searchTerm) ||
-        (block.language || '').toLowerCase().includes(searchTerm)
-      );
-      const embedMatch = (article.embedCode || '').toLowerCase().includes(searchTerm);
-      return contentMatch || authorMatch || tagsMatch || codeMatch || embedMatch;
-    });
-    sortArticles();
-    renderArticles();
+    applyFilters();
   });
+
+  // 篩選類型變更
+  const filterSelect = document.getElementById('filterSelect');
+  if (filterSelect) {
+    filterSelect.addEventListener('change', (e) => {
+      currentFilter = e.target.value;
+      currentFilterValue = '';
+      updateFilterValueOptions();
+      applyFilters();
+    });
+  }
+
+  // 篩選值變更
+  const filterValueSelect = document.getElementById('filterValueSelect');
+  if (filterValueSelect) {
+    filterValueSelect.addEventListener('change', (e) => {
+      currentFilterValue = e.target.value;
+      applyFilters();
+    });
+  }
   document.getElementById('exportBtn').addEventListener('click', exportAllEmbedCodes);
   const exportFullBtn = document.getElementById('exportFullBtn');
   if (exportFullBtn) {
@@ -370,7 +388,98 @@ function setupEventListeners() {
     sortArticles();
     renderArticles();
   });
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+      toggleSelectAll(e.target.checked);
+    });
+  }
+  const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener('click', clearSelection);
+  }
+  updateFilterValueOptions();
 }
+function applyFilters() {
+  const searchTerm = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  filteredArticles = allArticles.filter(article => {
+    if (!matchesFilter(article)) {
+      return false;
+    }
+    if (searchTerm) {
+      const contentMatch = (article.content || '').toLowerCase().includes(searchTerm);
+      const authorMatch = (article.author || '').toLowerCase().includes(searchTerm);
+      const tagsMatch = (article.tags || []).some(tag => (tag || '').toLowerCase().includes(searchTerm));
+      const codeMatch = (article.codeBlocks || []).some(block =>
+        (block.code || '').toLowerCase().includes(searchTerm) ||
+        (block.language || '').toLowerCase().includes(searchTerm)
+      );
+      const embedMatch = (article.embedCode || '').toLowerCase().includes(searchTerm);
+      return contentMatch || authorMatch || tagsMatch || codeMatch || embedMatch;
+    }
+
+    return true;
+  });
+
+  sortArticles();
+  renderArticles();
+}
+function matchesFilter(article) {
+  switch (currentFilter) {
+    case 'all':
+      return true;
+    case 'author':
+      if (!currentFilterValue) return true;
+      return (article.author || '').toLowerCase() === currentFilterValue.toLowerCase();
+    case 'tag':
+      if (!currentFilterValue) return true;
+      return (article.tags || []).some(tag =>
+        (tag || '').toLowerCase() === currentFilterValue.toLowerCase()
+      );
+    case 'noTimestamp':
+      if (!article.timestamp) return true;
+      if (!article.timestampTitle) {
+        const timestamp = new Date(article.timestamp).getTime();
+        const savedAt = new Date(article.savedAt).getTime();
+        if (Math.abs(timestamp - savedAt) < 60000) return true;
+      }
+      return false;
+    default:
+      return true;
+  }
+}
+function updateFilterValueOptions() {
+  const filterValueContainer = document.getElementById('filterValueContainer');
+  const filterValueSelect = document.getElementById('filterValueSelect');
+  if (!filterValueContainer || !filterValueSelect) return;
+  filterValueSelect.innerHTML = '<option value="">全部</option>';
+  let values = [];
+  switch (currentFilter) {
+    case 'author':
+      values = [...new Set(allArticles.map(a => a.author).filter(Boolean))];
+      values.sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      break;
+    case 'tag':
+      values = [...new Set(allArticles.flatMap(a => a.tags || []).filter(Boolean))];
+      values.sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      break;
+    default:
+      filterValueContainer.style.display = 'none';
+      return;
+  }
+  if (values.length > 0) {
+    filterValueContainer.style.display = 'flex';
+    values.forEach(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      filterValueSelect.appendChild(option);
+    });
+  } else {
+    filterValueContainer.style.display = 'none';
+  }
+}
+
 function sortArticles() {
   const [field, order] = currentSort.split('-');
   filteredArticles.sort((a, b) => {
@@ -441,7 +550,16 @@ function renderArticles() {
   filteredArticles.forEach(article => {
     const card = document.createElement('div');
     card.className = 'article-card';
+    if (selectedArticleIds.has(article.id)) {
+      card.classList.add('selected');
+    }
     card.dataset.id = article.id;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'article-checkbox';
+    checkbox.checked = selectedArticleIds.has(article.id);
+    checkbox.dataset.articleId = article.id;
+    card.appendChild(checkbox);
     const header = document.createElement('div');
     header.className = 'article-header';
     const authorEl = document.createElement('div');
@@ -585,6 +703,57 @@ function renderArticles() {
       copyCodeBlock(articleId, index);
     });
   });
+  container.querySelectorAll('.article-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const articleId = e.target.dataset.articleId;
+      const card = e.target.closest('.article-card');
+      if (e.target.checked) {
+        selectedArticleIds.add(articleId);
+        card.classList.add('selected');
+      } else {
+        selectedArticleIds.delete(articleId);
+        card.classList.remove('selected');
+      }
+      updateSelectionUI();
+    });
+  });
+  updateSelectionUI();
+}
+function updateSelectionUI() {
+  const countElement = document.getElementById('articleCount');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectionInfo = document.getElementById('selectionInfo');
+
+  if (selectedArticleIds.size > 0) {
+    countElement.textContent = `${filteredArticles.length} 篇 (已選 ${selectedArticleIds.size})`;
+    if (selectionInfo) {
+      selectionInfo.textContent = `已選取 ${selectedArticleIds.size} 篇`;
+      selectionInfo.style.display = 'inline';
+    }
+  } else {
+    countElement.textContent = `${filteredArticles.length} 篇`;
+    if (selectionInfo) {
+      selectionInfo.style.display = 'none';
+    }
+  }
+  if (selectAllCheckbox && filteredArticles.length > 0) {
+    const allSelected = filteredArticles.every(a => selectedArticleIds.has(a.id));
+    const someSelected = filteredArticles.some(a => selectedArticleIds.has(a.id));
+    selectAllCheckbox.checked = allSelected;
+    selectAllCheckbox.indeterminate = someSelected && !allSelected;
+  }
+}
+function toggleSelectAll(checked) {
+  if (checked) {
+    filteredArticles.forEach(a => selectedArticleIds.add(a.id));
+  } else {
+    filteredArticles.forEach(a => selectedArticleIds.delete(a.id));
+  }
+  renderArticles();
+}
+function clearSelection() {
+  selectedArticleIds.clear();
+  renderArticles();
 }
 function formatTime(isoString) {
   if (!isoString) return '未知';
