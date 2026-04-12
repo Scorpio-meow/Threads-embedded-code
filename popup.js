@@ -92,6 +92,13 @@ async function updateAllTimestamps() {
     try {
       const postInfo = await fetchPostInfoViaTab(article.postLink);
       if (postInfo) {
+        if (postInfo.status === 'expired') {
+          markArticleAsExpired(article, postInfo.reason);
+          failCount++;
+          console.warn(`[Popup] 更新結果看起來是失效頁面，略過 (${currentIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
+          continue;
+        }
+        clearArticleExpiredStatus(article);
         if (postInfo.datetime) {
           article.timestamp = postInfo.datetime;
           article.timestampTitle = postInfo.title || '';
@@ -134,9 +141,23 @@ async function fetchPostInfoViaTab(postLink) {
     });
     await waitForTabLoad(tab.id);
     await new Promise(resolve => setTimeout(resolve, 2000));
+    const loadedTab = await chrome.tabs.get(tab.id);
+    if (!isSameThreadsPostLink(safeUrl, loadedTab?.url || '')) {
+      console.warn('[Popup] 頁面已導向非原始貼文，視為失效頁面:', {
+        requested: safeUrl,
+        actual: loadedTab?.url || ''
+      });
+      await chrome.tabs.remove(tab.id);
+      tab = null;
+      return {
+        status: 'expired',
+        reason: 'redirected'
+      };
+    }
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: extractPostInfoFromPage
+      func: extractPostInfoFromPage,
+      args: [safeUrl]
     });
     await chrome.tabs.remove(tab.id);
     tab = null;
@@ -171,11 +192,60 @@ function waitForTabLoad(tabId) {
     chrome.tabs.onUpdated.addListener(listener);
   });
 }
-function extractPostInfoFromPage() {
+function extractPostInfoFromPage(requestedPostLink = '') {
+  function createExpiredPostResult(reason) {
+    return {
+      status: 'expired',
+      reason,
+      datetime: '',
+      title: '',
+      content: ''
+    };
+  }
+  function findPostElementFromPostLink(postLink) {
+    if (!postLink) {
+      return null;
+    }
+    const normalizedPostLink = postLink.split('?')[0];
+    const postIdMatch = normalizedPostLink.match(/\/post\/([^\/]+)$/i) || postLink.match(/\/post\/([^\/?]+)/i);
+    const postId = postIdMatch ? postIdMatch[1] : '';
+    const links = Array.from(document.querySelectorAll('a[href*="/post/"]'));
+    for (const link of links) {
+      const href = (link.getAttribute('href') || link.href || '').split('?')[0];
+      if (href === normalizedPostLink || (postId && href.includes(`/post/${postId}`))) {
+        const article = link.closest('article') || link.closest('[role="article"]') || link.closest('[data-pressable-container="true"]');
+        if (article) {
+          return article;
+        }
+        let ancestor = link.parentElement;
+        for (let depth = 0; depth < 12 && ancestor; depth += 1) {
+          if (ancestor.querySelector('time[datetime]')) {
+            return ancestor;
+          }
+          ancestor = ancestor.parentElement;
+        }
+      }
+    }
+    return null;
+  }
+  function isFallbackDescription(text) {
+    if (!text) {
+      return false;
+    }
+    return [
+      /查看\s*@[^。\n]+參與的最新對話/i,
+      /(?:\d+[.,]?\d*(?:萬|千)?位?\s*)?粉絲\s*•\s*[\d.,]+\s*則串文/i
+    ].some((pattern) => pattern.test(text));
+  }
+  const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
+  if (requestedPostLink && !requestedPostElement) {
+    return createExpiredPostResult('post-not-found');
+  }
+  const sourceRoot = requestedPostElement || document;
   let datetime = null;
   let title = '';
   let content = '';
-  const timeElement = document.querySelector('time[datetime]');
+  const timeElement = requestedPostElement?.querySelector('time[datetime]') || null;
   if (timeElement) {
     datetime = timeElement.getAttribute('datetime');
     title = timeElement.getAttribute('title') || '';
@@ -202,12 +272,12 @@ function extractPostInfoFromPage() {
   const metaDescription = document.querySelector('meta[property="og:description"]');
   if (metaDescription) {
     const metaContent = metaDescription.getAttribute('content') || '';
-    if (metaContent && !metaContent.includes('加入 Threads 即可分享意見')) {
+    if (metaContent && !metaContent.includes('加入 Threads 即可分享意見') && !isFallbackDescription(metaContent)) {
       content = metaContent;
     }
   }
   if (!content) {
-    const contentSpans = document.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
+    const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
     if (contentSpans.length > 0) {
       content = Array.from(contentSpans)
         .filter(span => !span.closest('h1'))
@@ -217,7 +287,7 @@ function extractPostInfoFromPage() {
     }
   }
   if (!content) {
-    const xi7Spans = document.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
+    const xi7Spans = sourceRoot.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
     if (xi7Spans.length > 0) {
       content = Array.from(xi7Spans)
         .filter(span => !span.closest('h1'))
@@ -226,10 +296,14 @@ function extractPostInfoFromPage() {
         .join('\n');
     }
   }
+  if (requestedPostLink && isFallbackDescription([title, content].filter(Boolean).join(' '))) {
+    return createExpiredPostResult('fallback-summary');
+  }
   if (!datetime && !content) {
     return null;
   }
   return {
+    status: 'active',
     datetime,
     title,
     content
@@ -255,6 +329,43 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
   } catch (err) {
     return '#';
   }
+}
+function extractThreadsPostIdFromLink(postLink) {
+  if (!postLink) {
+    return '';
+  }
+  const normalizedPostLink = String(postLink).split('?')[0];
+  const postIdMatch = normalizedPostLink.match(/\/post\/([^\/]+)$/i) || String(postLink).match(/\/post\/([^\/?]+)/i);
+  return postIdMatch ? postIdMatch[1] : '';
+}
+function isSameThreadsPostLink(expectedLink, actualLink) {
+  const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
+  const actualPostId = extractThreadsPostIdFromLink(actualLink);
+  return !!expectedPostId && !!actualPostId && expectedPostId === actualPostId;
+}
+function isLikelyThreadsFallbackDescription(text) {
+  if (!text) {
+    return false;
+  }
+  return [
+    /查看\s*@[^。\n]+參與的最新對話/i,
+    /(?:\d+[.,]?\d*(?:萬|千)?位?\s*)?粉絲\s*•\s*[\d.,]+\s*則串文/i
+  ].some((pattern) => pattern.test(text));
+}
+function isExpiredArticle(article) {
+  return article?.status === 'expired' || !!article?.expiredAt || !!article?.expiredReason;
+}
+function markArticleAsExpired(article, reason) {
+  article.status = 'expired';
+  article.expiredAt = article.expiredAt || new Date().toISOString();
+  article.expiredReason = reason || article.expiredReason || 'unknown';
+  article.expiredCheckedAt = new Date().toISOString();
+}
+function clearArticleExpiredStatus(article) {
+  article.status = 'active';
+  delete article.expiredAt;
+  delete article.expiredReason;
+  delete article.expiredCheckedAt;
 }
 document.addEventListener('DOMContentLoaded', async () => {
   await loadArticles();
@@ -444,6 +555,8 @@ function matchesFilter(article) {
         if (Math.abs(timestamp - savedAt) < 60000) return true;
       }
       return false;
+    case 'expired':
+      return isExpiredArticle(article);
     default:
       return true;
   }
@@ -585,6 +698,16 @@ function renderArticles() {
     const contentText = (article.content || '').substring(0, 200);
     contentEl.textContent = contentText + ((article.content || '').length > 200 ? '...' : '');
     card.appendChild(contentEl);
+    if (isExpiredArticle(article)) {
+      const statusBadge = document.createElement('span');
+      statusBadge.className = 'tag';
+      statusBadge.textContent = '失效貼文';
+      statusBadge.title = article.expiredReason ? `原因：${article.expiredReason}` : '已歸類為失效貼文';
+      statusBadge.style.background = 'rgba(255, 48, 64, 0.12)';
+      statusBadge.style.color = 'var(--danger-color)';
+      statusBadge.style.marginTop = '0';
+      card.appendChild(statusBadge);
+    }
     if (article.embedCode) {
       const embedWrapper = document.createElement('div');
       embedWrapper.className = 'embed-snippet';
@@ -901,11 +1024,15 @@ async function exportFullData() {
       timestamp: article.timestamp || '',
       timestampTitle: article.timestampTitle || '',
       savedAt: article.savedAt || '',
-      tags: article.tags || []
+      tags: article.tags || [],
+      status: article.status || '',
+      expiredAt: article.expiredAt || '',
+      expiredReason: article.expiredReason || '',
+      expiredCheckedAt: article.expiredCheckedAt || ''
     };
   });
   const jsContent = `// Threads 貼文完整資料 - 匯出時間: ${new Date().toLocaleString('zh-TW')}
-// 包含: embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags
+// 包含: embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status
 const posts = ${JSON.stringify(exportData, null, 2)};
 `;
   const blob = new Blob([jsContent], { type: 'text/javascript;charset=utf-8' });
@@ -1002,6 +1129,10 @@ function parseJsEmbedFile(content) {
               timestampTitle: item.timestampTitle || '',
               tags: item.tags || [],
               savedAt: item.savedAt || new Date().toISOString(),
+              status: item.status || '',
+              expiredAt: item.expiredAt || '',
+              expiredReason: item.expiredReason || '',
+              expiredCheckedAt: item.expiredCheckedAt || '',
               importedFrom: 'full-data-file'
             };
           });

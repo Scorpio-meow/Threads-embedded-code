@@ -5,6 +5,8 @@ if (!window.__threadsSaverInitialized) {
   } else {
     init();
   }
+} else {
+  init();
 }
 function isExtensionAlive() {
   try {
@@ -125,13 +127,283 @@ function extractPostContent(container) {
     return extractContentFromDOM(container);
   }
 }
-function addSaveButtons() {
-  const embedButtons = Array.from(document.querySelectorAll('[role="button"]')).filter(btn => {
-    const text = btn.textContent || '';
-    return text.includes('取得內嵌程式碼') || text.includes('Get embed code');
+const EMBED_TRIGGER_SELECTORS = [
+  'button',
+  '[role="button"]',
+  '[role="menuitem"]',
+  '[role="menuitemcheckbox"]',
+  '[role="option"]',
+  'a',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+const EMBED_TRIGGER_PATTERNS = [
+  /取得.*內嵌/i,
+  /取得.*嵌入/i,
+  /內嵌程式碼/i,
+  /嵌入程式碼/i,
+  /Get\s+embed\s+code/i,
+  /Embed\s+code/i,
+  /^Embed$/i,
+  /\bEmbed\b/i
+];
+function isElementVisible(element) {
+  if (!element) {
+    return false;
+  }
+  const rects = element.getClientRects();
+  if (!rects || rects.length === 0) {
+    return false;
+  }
+  const style = window.getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+function getElementLabelText(element) {
+  if (!element) {
+    return '';
+  }
+  const pieces = [];
+  const ariaLabel = element.getAttribute('aria-label');
+  const title = element.getAttribute('title');
+  const value = typeof element.value === 'string' ? element.value : '';
+  const text = element.innerText || element.textContent || '';
+  [ariaLabel, title, value, text].forEach((piece) => {
+    if (piece && String(piece).trim()) {
+      pieces.push(String(piece).trim());
+    }
   });
-  console.log(`[Threads Saver] 找到 ${embedButtons.length} 個「取得內嵌程式碼」按鈕`);
-  console.log('[Threads Saver] 準備處理', embedButtons.length, '個嵌入按鈕');
+  return pieces.join(' ').replace(/\s+/g, ' ').trim();
+}
+function isEmbedTriggerElement(element) {
+  const labelText = getElementLabelText(element);
+  if (!labelText) {
+    return false;
+  }
+  return EMBED_TRIGGER_PATTERNS.some((pattern) => pattern.test(labelText));
+}
+function findEmbedCodeTriggers() {
+  const candidates = Array.from(document.querySelectorAll(EMBED_TRIGGER_SELECTORS));
+  return candidates.filter((element) => isElementVisible(element) && isEmbedTriggerElement(element));
+}
+function findPostElementFromPostLink(postLink) {
+  if (!postLink) {
+    return null;
+  }
+  const normalizedPostLink = postLink.split('?')[0];
+  const postIdMatch = normalizedPostLink.match(/\/post\/([^\/]+)$/i) || postLink.match(/\/post\/([^\/?]+)/i);
+  const postId = postIdMatch ? postIdMatch[1] : '';
+  const links = Array.from(document.querySelectorAll('a[href*="/post/"]'));
+  for (const link of links) {
+    const href = (link.getAttribute('href') || link.href || '').split('?')[0];
+    if (href === normalizedPostLink || (postId && href.includes(`/post/${postId}`))) {
+      const article = link.closest('article') || link.closest('[role="article"]') || link.closest('[data-pressable-container="true"]');
+      if (article) {
+        return article;
+      }
+      let ancestor = link.parentElement;
+      for (let depth = 0; depth < 12 && ancestor; depth += 1) {
+        if (ancestor.querySelector('time[datetime]')) {
+          return ancestor;
+        }
+        ancestor = ancestor.parentElement;
+      }
+    }
+  }
+  return null;
+}
+function extractPostLinkFromEmbedCode(embedCode) {
+  if (!embedCode) {
+    return '';
+  }
+  const permalinkMatch = embedCode.match(/data-text-post-permalink="([^"]+)"/i);
+  if (permalinkMatch) {
+    return permalinkMatch[1];
+  }
+  const urlMatch = embedCode.match(/https?:\/\/(?:www\.)?threads\.com\/@[^"'\s<]+\/post\/[^"'\s<]+/i);
+  return urlMatch ? urlMatch[0] : '';
+}
+function extractAuthorUrlFromPostLink(postLink) {
+  if (!postLink) {
+    return '';
+  }
+  const authorMatch = postLink.match(/^(https?:\/\/(?:www\.)?threads\.com\/@[^\/?#]+)\/post\//i);
+  return authorMatch ? authorMatch[1] : '';
+}
+function extractAuthorNameFromPostLink(postLink) {
+  const authorUrl = extractAuthorUrlFromPostLink(postLink);
+  const authorMatch = authorUrl.match(/\/@([^\/?#]+)$/i);
+  return authorMatch ? authorMatch[1] : '';
+}
+function findAuthorLinkInPost(postElement) {
+  if (!postElement) {
+    return null;
+  }
+  const candidates = Array.from(postElement.querySelectorAll('a[href*="/@"], [role="link"][href*="/@"]'))
+    .filter((link) => {
+      const href = (link.getAttribute('href') || link.href || '').split('?')[0];
+      return href.includes('/@') && !href.includes('/post/');
+    });
+  if (candidates.length === 0) {
+    return null;
+  }
+  const labelCandidates = candidates.filter((link) => {
+    const labelText = getElementLabelText(link);
+    return labelText && !/串文|瀏覽|view|views?/i.test(labelText);
+  });
+  const preferredCandidates = labelCandidates.length > 0 ? labelCandidates : candidates;
+  return preferredCandidates.find((link) => getElementLabelText(link)) || preferredCandidates[0] || null;
+}
+function extractAuthorDataFromPost(postElement, postLink) {
+  const authorLink = findAuthorLinkInPost(postElement);
+  let author = authorLink ? getElementLabelText(authorLink) : '';
+  let authorUrl = authorLink?.href || '';
+  if (!authorUrl) {
+    authorUrl = extractAuthorUrlFromPostLink(postLink);
+  }
+  if (!author) {
+    author = extractAuthorNameFromPostLink(postLink);
+  }
+  return {
+    author,
+    authorUrl
+  };
+}
+function extractPostTimestampFromElement(postElement) {
+  const timeElement = postElement?.querySelector('time[datetime]');
+  if (!timeElement) {
+    return {
+      timestamp: '',
+      timestampTitle: ''
+    };
+  }
+  return {
+    timestamp: timeElement.getAttribute('datetime') || '',
+    timestampTitle: timeElement.getAttribute('title') || ''
+  };
+}
+function extractEmbedCodeFromDialog(dialog) {
+  if (!dialog) {
+    return '';
+  }
+  const inputs = Array.from(dialog.querySelectorAll('input[readonly], textarea[readonly]'));
+  let bestValue = '';
+  let bestScore = -1;
+  for (const input of inputs) {
+    const rawValue = typeof input.value === 'string' ? input.value : (input.getAttribute('value') || input.textContent || '');
+    const value = rawValue.trim();
+    if (!value) {
+      continue;
+    }
+    let score = value.length;
+    if (/data-text-post-permalink=/i.test(value)) {
+      score += 1000;
+    }
+    if (/<blockquote/i.test(value)) {
+      score += 500;
+    }
+    if (/threads\.com/i.test(value)) {
+      score += 100;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestValue = value;
+    }
+  }
+  return bestValue;
+}
+async function saveArticleFromEmbedDialog(dialog, context = {}) {
+  const embedCode = extractEmbedCodeFromDialog(dialog);
+  if (!embedCode) {
+    console.warn('[Threads Saver] 對話框中沒有可讀取的內嵌程式碼');
+    showNotification('找不到可儲存的內嵌程式碼');
+    return;
+  }
+  const postLink = extractPostLinkFromEmbedCode(embedCode) || context.postLink || context.postElement?.querySelector('a[href*="/post/"]')?.href || '';
+  if (!postLink) {
+    console.error('[Threads Saver] 無法從內嵌程式碼提取貼文連結');
+    showNotification('無法取得貼文連結');
+    return;
+  }
+  const postElement = context.postElement || findPostElementFromPostLink(postLink);
+  const finalContent = (context.preContent || (postElement ? extractPostContent(postElement) : '') || extractContentFromMeta() || '').trim();
+  let finalAuthor = (context.preAuthor || '').trim();
+  let finalAuthorUrl = (context.preAuthorUrl || '').trim();
+  if ((!finalAuthor || !finalAuthorUrl) && postElement) {
+    const authorData = extractAuthorDataFromPost(postElement, postLink);
+    finalAuthor = finalAuthor || authorData.author;
+    finalAuthorUrl = finalAuthorUrl || authorData.authorUrl;
+  }
+  if (!finalAuthorUrl) {
+    finalAuthorUrl = extractAuthorUrlFromPostLink(postLink);
+  }
+  if (!finalAuthor) {
+    finalAuthor = extractAuthorNameFromPostLink(postLink);
+  }
+  const timestampData = extractPostTimestampFromElement(postElement);
+  const articleData = {
+    id: `embed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    postLink,
+    embedCode,
+    timestamp: timestampData.timestamp || new Date().toISOString(),
+    timestampTitle: timestampData.timestampTitle || '',
+    savedAt: new Date().toISOString(),
+    content: finalContent,
+    author: finalAuthor || '未知作者',
+    authorUrl: finalAuthorUrl,
+    tags: extractTags(finalContent),
+    codeBlocks: []
+  };
+  console.log('[Threads Saver] 準備儲存嵌入對話框內容:', articleData.postLink);
+  await saveArticle(articleData, null);
+}
+async function processOpenEmbedDialogs() {
+  const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+  if (dialogs.length === 0) {
+    return;
+  }
+  for (const dialog of dialogs) {
+    if (dialog.dataset.threadsSaverSaved === 'true' || dialog.dataset.threadsSaverSaving === 'true') {
+      continue;
+    }
+    const embedCode = extractEmbedCodeFromDialog(dialog);
+    if (!embedCode) {
+      continue;
+    }
+    dialog.dataset.threadsSaverSaving = 'true';
+    const postLink = extractPostLinkFromEmbedCode(embedCode);
+    const postElement = postLink ? findPostElementFromPostLink(postLink) : dialog.closest('article') || dialog.closest('[role="article"]');
+    const preContent = postElement ? extractPostContent(postElement) : '';
+    let preAuthor = '';
+    let preAuthorUrl = '';
+    if (postElement) {
+      const authorData = extractAuthorDataFromPost(postElement, postLink);
+      preAuthor = authorData.author;
+      preAuthorUrl = authorData.authorUrl;
+    }
+    console.log('[Threads Saver] 偵測到可直接讀取的內嵌對話框');
+    try {
+      await saveArticleFromEmbedDialog(dialog, {
+        postElement,
+        postLink,
+        preContent,
+        preAuthor,
+        preAuthorUrl
+      });
+      dialog.dataset.threadsSaverSaved = 'true';
+    } finally {
+      delete dialog.dataset.threadsSaverSaving;
+    }
+  }
+}
+function addSaveButtons() {
+  const embedButtons = findEmbedCodeTriggers();
+  if (window.__threadsSaverLastTriggerCount !== embedButtons.length) {
+    window.__threadsSaverLastTriggerCount = embedButtons.length;
+    console.log(`[Threads Saver] 找到 ${embedButtons.length} 個「取得內嵌程式碼」按鈕`);
+    console.log('[Threads Saver] 準備處理', embedButtons.length, '個嵌入按鈕');
+    if (embedButtons.length === 0) {
+      console.log('[Threads Saver] 目前尚未偵測到可附加的觸發項，會持續監看內嵌對話框');
+    }
+  }
   embedButtons.forEach((embedButton, index) => {
     if (embedButton.dataset.threadsSaverAttached) {
       console.log(`[Threads Saver] 按鈕 ${index + 1} 已處理過,跳過`);
@@ -163,8 +435,6 @@ function addSaveButtons() {
         console.log('[Threads Saver] 點擊前未找到貼文容器元素');
       }
       setTimeout(async () => {
-        let postLink = null;
-        let embedCode = null;
         const dialogs = document.querySelectorAll('[role="dialog"]');
         if (dialogs.length === 0) {
           console.error('[Threads Saver] 找不到對話框');
@@ -173,141 +443,34 @@ function addSaveButtons() {
         }
         const dialog = dialogs[dialogs.length - 1];
         console.log('[Threads Saver] 找到', dialogs.length, '個對話框,使用最新的一個');
-        const embedInput = dialog.querySelector('input[readonly][value*="blockquote"]');
-        if (embedInput) {
-          embedCode = embedInput.value;
-          console.log('[Threads Saver] 從對話框取得官方內嵌程式碼');
-          const permalinkMatch = embedCode.match(/data-text-post-permalink="([^"]+)"/);
-          if (permalinkMatch) {
-            postLink = permalinkMatch[1];
-            console.log('[Threads Saver] 從內嵌程式碼的 data-text-post-permalink 提取網址:', postLink);
-          }
-        } else {
-          console.error('[Threads Saver] 找不到內嵌程式碼輸入框');
-        }
-        if (!postLink) {
-          console.error('[Threads Saver] 無法從內嵌程式碼提取貼文連結');
-          showNotification('無法取得貼文連結');
+        if (dialog.dataset.threadsSaverSaved === 'true' || dialog.dataset.threadsSaverSaving === 'true') {
+          console.log('[Threads Saver] 對話框已處理過,跳過');
           return;
         }
-        let fallbackAuthor = '';
-        let fallbackAuthorUrl = '';
-        if (!preAuthor) {
-          const authorMatch = postLink.match(/\/@([^\/]+)\//);
-          if (authorMatch) {
-            fallbackAuthor = authorMatch[1];
-            fallbackAuthorUrl = `https://www.threads.com/@${fallbackAuthor}`;
-            console.log('[Threads Saver] 從網址提取作者:', fallbackAuthor);
-          }
+        dialog.dataset.threadsSaverSaving = 'true';
+        try {
+          await saveArticleFromEmbedDialog(dialog, {
+            postElement,
+            preContent,
+            preAuthor,
+            preAuthorUrl
+          });
+          dialog.dataset.threadsSaverSaved = 'true';
+        } finally {
+          delete dialog.dataset.threadsSaverSaving;
         }
-        if (!embedCode) {
-          embedCode = buildThreadsEmbedCode(postLink);
-          console.log('[Threads Saver] 自行生成內嵌程式碼');
-        }
-        let finalContent = preContent;
-        let finalAuthor = preAuthor || fallbackAuthor;
-        let finalAuthorUrl = preAuthorUrl || fallbackAuthorUrl;
-        let finalTimestamp = null;
-        let finalTimestampTitle = null;
-        if (postElement) {
-          const timeElement = postElement.querySelector('time[datetime]');
-          if (timeElement) {
-            finalTimestamp = timeElement.getAttribute('datetime');
-            finalTimestampTitle = timeElement.getAttribute('title') || '';
-            console.log('[Threads Saver] 點擊前提取到發文時間:', finalTimestamp, '| title:', finalTimestampTitle);
-          }
-        }
-        if (postLink) {
-          console.log('[Threads Saver] 嘗試透過 postLink 查找文章資料...');
-          const postId = postLink.match(/\/post\/([^\/\?]+)/)?.[1];
-          if (postId) {
-            const postLinks = Array.from(document.querySelectorAll(`a[href*="/post/${postId}"]`));
-            console.log('[Threads Saver] 找到', postLinks.length, '個符合的連結');
-            for (const link of postLinks) {
-              let article = link.closest('article') ||
-                link.closest('[role="article"]') ||
-                link.closest('[data-pressable-container="true"]');
-              if (!article) {
-                let parent = link.parentElement;
-                for (let i = 0; i < 15 && parent; i++) {
-                  if (parent.querySelector('time[datetime]')) {
-                    article = parent;
-                    console.log('[Threads Saver] 透過 time 元素找到貼文容器，層級:', i);
-                    break;
-                  }
-                  parent = parent.parentElement;
-                }
-              }
-              if (article) {
-                console.log('[Threads Saver] 透過 postLink 找到文章元素');
-                if (!finalContent) {
-                  finalContent = extractPostContent(article);
-                  if (finalContent) {
-                    console.log('[Threads Saver] Fallback 提取到內容長度:', finalContent.length);
-                  }
-                }
-              }
-              if (!finalAuthor) {
-                const authorLink = article.querySelector('a[role="link"][href*="/@"]');
-                if (authorLink) {
-                  finalAuthor = authorLink.innerText || '';
-                  finalAuthorUrl = authorLink.href || '';
-                  console.log('[Threads Saver] Fallback 提取到作者:', finalAuthor);
-                }
-              }
-              if (!finalTimestamp) {
-                const timeElement = article.querySelector('time[datetime]');
-                if (timeElement) {
-                  finalTimestamp = timeElement.getAttribute('datetime');
-                  finalTimestampTitle = timeElement.getAttribute('title') || '';
-                  console.log('[Threads Saver] Fallback 提取到發文時間:', finalTimestamp, '| title:', finalTimestampTitle);
-                }
-              }
-              if (finalTimestamp) {
-                break;
-              }
-            }
-            if (!finalTimestamp) {
-              console.log('[Threads Saver] 嘗試直接搜尋 time 元素...');
-              const allTimeLinks = document.querySelectorAll(`a[href*="/post/${postId}"] time[datetime]`);
-              if (allTimeLinks.length > 0) {
-                finalTimestamp = allTimeLinks[0].getAttribute('datetime');
-                finalTimestampTitle = allTimeLinks[0].getAttribute('title') || '';
-                console.log('[Threads Saver] 從連結內的 time 提取到發文時間:', finalTimestamp, '| title:', finalTimestampTitle);
-              }
-            }
-          }
-        }
-        console.log('[Threads Saver] 最終資料 - 內容長度:', finalContent.length, '| 發文時間:', finalTimestamp, '| 時間標題:', finalTimestampTitle);
-        const articleData = {
-          id: `embed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          postLink: postLink,
-          embedCode: embedCode,
-          timestamp: finalTimestamp,
-          timestampTitle: finalTimestampTitle,
-          savedAt: new Date().toISOString(),
-          content: finalContent.trim(),
-          author: finalAuthor.trim(),
-          authorUrl: finalAuthorUrl,
-          tags: extractTags(finalContent),
-          codeBlocks: []
-        };
-        console.log('[Threads Saver] 準備儲存文章:', articleData.postLink);
-        await saveArticle(articleData, null);
       }, 1000);
     }, true);
     console.log('[Threads Saver] 已附加監聽器到「取得內嵌程式碼」按鈕');
   });
+  void processOpenEmbedDialogs();
 }
 function extractArticleData(articleElement) {
   let textContent = extractPostContent(articleElement);
   console.log('[Threads Saver] 抓取到的內文:', textContent);
   const codeBlocks = extractCodeBlocks(articleElement, textContent);
-  const authorElement = articleElement.querySelector('a[role="link"]') ||
-    articleElement.querySelector('[class*="x1lliihq"] a');
-  const author = authorElement?.innerText || '未知作者';
-  const authorUrl = authorElement?.href || '';
   const postLink = articleElement.querySelector('a[href*="/post/"]')?.href || window.location.href;
+  const authorData = extractAuthorDataFromPost(articleElement, postLink);
   const embedCode = buildThreadsEmbedCode(postLink);
   console.log('[Threads Saver] 使用本地生成的嵌入代碼（可稍後手動更新）');
   const timeElement = articleElement.querySelector('time');
@@ -319,8 +482,8 @@ function extractArticleData(articleElement) {
     content: textContent.trim(),
     codeBlocks,
     codeCount: codeBlocks.length,
-    author: author.trim(),
-    authorUrl,
+    author: authorData.author.trim() || '未知作者',
+    authorUrl: authorData.authorUrl,
     postLink,
     embedCode,
     timestamp,
