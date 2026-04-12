@@ -330,14 +330,7 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
     return '#';
   }
 }
-function extractThreadsPostIdFromLink(postLink) {
-  if (!postLink) {
-    return '';
-  }
-  const normalizedPostLink = String(postLink).split('?')[0];
-  const postIdMatch = normalizedPostLink.match(/\/post\/([^\/]+)$/i) || String(postLink).match(/\/post\/([^\/?]+)/i);
-  return postIdMatch ? postIdMatch[1] : '';
-}
+
 function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
   const actualPostId = extractThreadsPostIdFromLink(actualLink);
