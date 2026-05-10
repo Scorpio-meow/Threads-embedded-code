@@ -476,7 +476,6 @@ function addSaveButtons() {
         try {
           await saveArticleFromEmbedDialog(dialog, {
             postElement,
-            preContent,
             preAuthor,
             preAuthorUrl
           });
