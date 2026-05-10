@@ -213,15 +213,13 @@ function extractPostInfoFromPage(requestedPostLink = '') {
     for (const link of links) {
       const href = (link.getAttribute('href') || link.href || '').split('?')[0];
       if (href === normalizedPostLink || (postId && href.includes(`/post/${postId}`))) {
-        const article = link.closest('article') || link.closest('[role="article"]') || link.closest('[data-pressable-container="true"]');
-        if (article) {
-          return article;
-        }
+        const pressable = link.closest('[data-pressable-container]');
+        if (pressable) return pressable;
+        const article = link.closest('article') || link.closest('[role="article"]');
+        if (article) return article;
         let ancestor = link.parentElement;
-        for (let depth = 0; depth < 12 && ancestor; depth += 1) {
-          if (ancestor.querySelector('time[datetime]')) {
-            return ancestor;
-          }
+        for (let depth = 0; depth < 12 && ancestor; depth++) {
+          if (ancestor.querySelector('time[datetime]')) return ancestor;
           ancestor = ancestor.parentElement;
         }
       }
@@ -350,13 +348,10 @@ function isSameThreadsPostLink(expectedLink, actualLink) {
   return !!expectedPostId && !!actualPostId && expectedPostId === actualPostId;
 }
 function isLikelyThreadsFallbackDescription(text) {
-  if (!text) {
-    return false;
-  }
   const normalizedText = String(text).replace(/\s+/g, ' ').trim();
   return [
     /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
-    /^回覆[\s\S]*……$/i,
+    /^回覆[\s\S]*[…\.]{1,3}$/i,
     /^尚無回覆$/i,
     /^查看動態$/i,
     /^更多$/i,
@@ -368,9 +363,17 @@ function isLikelyThreadsFallbackDescription(text) {
     /^分享$/i,
     /^轉發$/i,
     /^讚$/i,
-    /查看\s*@[^。\n]+參與的最新對話/i,
-    /(?:\d+[.,]?\d*(?:萬|千)?位?\s*)?粉絲\s*•\s*[\d.,]+\s*則串文/i
-  ].some((pattern) => pattern.test(normalizedText));
+    /^為你推薦$/,
+    /^新串文$/,
+    /^搜尋$/,
+    /^動態$/,
+    /^個人檔案$/,
+    /^聯邦宇宙$/,
+    /^洞察報告$/,
+    /^已儲存$/,
+    /^追蹤中$/,
+    /^附帶原始貼文的回覆內容$/,
+  ].some(pattern => pattern.test(normalizedText));
 }
 function isExpiredArticle(article) {
   return article?.status === 'expired' || !!article?.expiredAt || !!article?.expiredReason;

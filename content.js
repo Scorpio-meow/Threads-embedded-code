@@ -70,35 +70,32 @@ function extractContentFromDOM(container) {
     'span[class*="xo1l8bm"][dir="auto"] > span',
     'span[class*="xi7mnp6"][dir="auto"] > span',
   ];
-  const replyPlaceholder = Array.from(
-    container.querySelectorAll('span[dir="auto"] > span')
-  ).find(el => el.textContent.startsWith('回覆'));
-  for (const selector of selectors) {
-    const candidates = Array.from(container.querySelectorAll(selector))
-      .filter(span => {
-        if (replyPlaceholder) {
-          return span.compareDocumentPosition(replyPlaceholder) & Node.DOCUMENT_POSITION_FOLLOWING;
-        }
-        return true;
-      })
-      .filter(span => !span.closest('button'))
-      .filter(span => !span.closest('[role="button"]'))
-      .filter(span => !span.closest('h1') && !span.closest('[aria-label="直欄標題"]'))
-      .filter(span => !isLikelyThreadsFallbackDescription(span.textContent.trim()))
-      .map(span => span.textContent.trim())
-      .filter(Boolean);
-    if (candidates.length) return candidates.join(' ');
-  }
-  return '';
+  const allSpans = Array.from(container.querySelectorAll(
+    selectors.map(s => s).join(', ')
+  ));
+  const replyBoundary = allSpans.find(s =>
+    /^回覆.+[…\.]{1,3}$/.test(s.textContent.trim())
+  );
+  const beforeReply = replyBoundary
+    ? allSpans.filter(s =>
+      s.compareDocumentPosition(replyBoundary) & Node.DOCUMENT_POSITION_FOLLOWING
+    )
+    : allSpans;
+  const candidates = beforeReply
+    .filter(span => !!span.closest('[data-pressable-container]'))
+    .filter(span => !span.closest('button'))
+    .filter(span => !span.closest('[role="button"]'))
+    .filter(span => !span.closest('h1') && !span.closest('[aria-label="直欄標題"]'))
+    .filter(span => !isLikelyThreadsFallbackDescription(span.textContent.trim()))
+    .map(span => span.textContent.trim())
+    .filter(Boolean);
+  return candidates.join(' ');
 }
 function isLikelyThreadsFallbackDescription(text) {
-  if (!text) {
-    return false;
-  }
   const normalizedText = String(text).replace(/\s+/g, ' ').trim();
   return [
     /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
-    /^回覆[\s\S]*……$/i,
+    /^回覆[\s\S]*[…\.]{1,3}$/i,
     /^尚無回覆$/i,
     /^查看動態$/i,
     /^更多$/i,
@@ -109,19 +106,41 @@ function isLikelyThreadsFallbackDescription(text) {
     /^展開撰寫工具$/i,
     /^分享$/i,
     /^轉發$/i,
-    /^讚$/i
-  ].some((pattern) => pattern.test(normalizedText));
+    /^讚$/i,
+    /^為你推薦$/,
+    /^新串文$/,
+    /^搜尋$/,
+    /^動態$/,
+    /^個人檔案$/,
+    /^聯邦宇宙$/,
+    /^洞察報告$/,
+    /^已儲存$/,
+    /^追蹤中$/,
+    /^附帶原始貼文的回覆內容$/,
+  ].some(pattern => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {
   const metaDescription = document.querySelector('meta[property="og:description"]');
   if (metaDescription) {
     const content = metaDescription.getAttribute('content') || '';
-    if (content && !content.includes('加入 Threads 即可分享意見') && !isLikelyThreadsFallbackDescription(content)) {
-      console.log('[Threads Saver] 從 meta og:description 提取到內容');
+    if (
+      content &&
+      !content.includes('加入 Threads 即可分享意見') &&
+      !isLikelyThreadsFallbackDescription(content) &&
+      !isLikelyImageOnlyDescription(content)
+    ) {
       return content;
     }
   }
   return '';
+}
+function isLikelyImageOnlyDescription(text) {
+  if (!text) return false;
+  if (/^Photo by .+ on .+\./i.test(text.trim())) return true;
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  const avgLen = lines.reduce((a, b) => a + b.length, 0) / lines.length;
+  return lines.length >= 2 && avgLen < 12;
 }
 function extractPostContent(container) {
   const isPostPage = isSinglePostPage();
@@ -204,15 +223,13 @@ function findPostElementFromPostLink(postLink) {
   for (const link of links) {
     const href = (link.getAttribute('href') || link.href || '').split('?')[0];
     if (href === normalizedPostLink || (postId && href.includes(`/post/${postId}`))) {
-      const article = link.closest('article') || link.closest('[role="article"]') || link.closest('[data-pressable-container="true"]');
-      if (article) {
-        return article;
-      }
+      const pressable = link.closest('[data-pressable-container]');
+      if (pressable) return pressable;
+      const article = link.closest('article') || link.closest('[role="article"]');
+      if (article) return article;
       let ancestor = link.parentElement;
-      for (let depth = 0; depth < 12 && ancestor; depth += 1) {
-        if (ancestor.querySelector('time[datetime]')) {
-          return ancestor;
-        }
+      for (let depth = 0; depth < 12 && ancestor; depth++) {
+        if (ancestor.querySelector('time[datetime]')) return ancestor;
         ancestor = ancestor.parentElement;
       }
     }
