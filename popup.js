@@ -203,26 +203,20 @@ function extractPostInfoFromPage(requestedPostLink = '') {
     };
   }
   function findPostElementFromPostLink(postLink) {
-    if (!postLink) {
-      return null;
-    }
-    const normalizedPostLink = postLink.split('?')[0];
-    const postIdMatch = normalizedPostLink.match(/\/post\/([^\/]+)$/i) || postLink.match(/\/post\/([^\/?]+)/i);
-    const postId = postIdMatch ? postIdMatch[1] : '';
-    const links = Array.from(document.querySelectorAll('a[href*="/post/"]'));
+    const match = postLink.match(/\/post\/([^\/\?]+)/i);
+    if (!match) return null;
+    const postId = match[1];
+    const links = Array.from(
+      document.querySelectorAll(`a[href*="/post/${postId}"]`)
+    );
     for (const link of links) {
-      const href = (link.getAttribute('href') || link.href || '').split('?')[0];
-      if (href === normalizedPostLink || (postId && href.includes(`/post/${postId}`))) {
-        const pressable = link.closest('[data-pressable-container]');
-        if (pressable) return pressable;
-        const article = link.closest('article') || link.closest('[role="article"]');
-        if (article) return article;
-        let ancestor = link.parentElement;
-        for (let depth = 0; depth < 12 && ancestor; depth++) {
-          if (ancestor.querySelector('time[datetime]')) return ancestor;
-          ancestor = ancestor.parentElement;
-        }
-      }
+      const pressable = link.closest('[data-pressable-container]');
+      if (pressable) return pressable;
+    }
+    const timeEl = document.querySelector('time[datetime]');
+    if (timeEl) {
+      const pressable = timeEl.closest('[data-pressable-container]');
+      if (pressable) return pressable;
     }
     return null;
   }
