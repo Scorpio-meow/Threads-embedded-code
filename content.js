@@ -410,7 +410,6 @@ async function processOpenEmbedDialogs() {
       await saveArticleFromEmbedDialog(dialog, {
         postElement,
         postLink,
-        preContent,
         preAuthor,
         preAuthorUrl
       });
