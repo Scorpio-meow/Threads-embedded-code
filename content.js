@@ -69,21 +69,23 @@ function extractContentFromDOM(container) {
   const selectors = [
     'span[class*="xo1l8bm"][dir="auto"] > span',
     'span[class*="xi7mnp6"][dir="auto"] > span',
-    'div.x1a6qonq span[dir="auto"] > span'
   ];
+  const replyPlaceholder = Array.from(
+    container.querySelectorAll('span[dir="auto"] > span')
+  ).find(el => el.textContent.startsWith('回覆'));
   for (const selector of selectors) {
-    const candidateTexts = Array.from(container.querySelectorAll(selector))
-      .filter(span => !span.closest('h1'))
+    const candidates = Array.from(container.querySelectorAll(selector))
+      .filter(span => {
+        if (replyPlaceholder) {
+          return span.compareDocumentPosition(replyPlaceholder) & Node.DOCUMENT_POSITION_FOLLOWING;
+        }
+        return true;
+      })
       .filter(span => !span.closest('button'))
       .filter(span => !span.closest('[role="button"]'))
-      .filter(span => !span.closest('[contenteditable="true"]'))
-      .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
-      .filter(text => text && !isLikelyThreadsFallbackDescription(text));
-    const uniqueTexts = [...new Set(candidateTexts)];
-    if (uniqueTexts.length > 0) {
-      console.log('[Threads Saver] 從 Threads 內容選擇器提取到內容:', selector);
-      return uniqueTexts.join('\n');
-    }
+      .map(span => span.textContent.trim())
+      .filter(Boolean);
+    if (candidates.length) return candidates.join(' ');
   }
   return '';
 }
@@ -123,9 +125,9 @@ function extractPostContent(container) {
   const isPostPage = isSinglePostPage();
   console.log('[Threads Saver] 當前頁面類型:', isPostPage ? '單一貼文頁面' : '首頁/Feed');
   if (isPostPage) {
-    let content = extractContentFromMeta();
+    let content = extractContentFromDOM(container);
     if (!content) {
-      content = extractContentFromDOM(container);
+      content = extractContentFromMeta();
     }
     return content;
   } else {

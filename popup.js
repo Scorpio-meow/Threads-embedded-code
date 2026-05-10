@@ -263,13 +263,6 @@ function extractPostInfoFromPage(requestedPostLink = '') {
       }
     }
   }
-  const metaDescription = document.querySelector('meta[property="og:description"]');
-  if (metaDescription) {
-    const metaContent = metaDescription.getAttribute('content') || '';
-    if (metaContent && !metaContent.includes('加入 Threads 即可分享意見') && !isFallbackDescription(metaContent)) {
-      content = metaContent;
-    }
-  }
   if (!content) {
     const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
     if (contentSpans.length > 0) {
@@ -296,6 +289,15 @@ function extractPostInfoFromPage(requestedPostLink = '') {
         .filter(text => text && !isLikelyThreadsFallbackDescription(text))
         .filter((text, index, array) => array.indexOf(text) === index)
         .join('\n');
+    }
+  }
+  if (!content) {
+    const metaDescription = document.querySelector('meta[property="og:description"]');
+    if (metaDescription) {
+      const metaContent = metaDescription.getAttribute('content') || '';
+      if (metaContent && !metaContent.includes('加入 Threads 即可分享意見') && !isFallbackDescription(metaContent)) {
+        content = metaContent;
+      }
     }
   }
   if (requestedPostLink && isFallbackDescription([title, content].filter(Boolean).join(' '))) {
