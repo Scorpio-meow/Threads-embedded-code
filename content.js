@@ -144,10 +144,14 @@ function isLikelyImageOnlyDescription(text) {
 }
 function extractPostContent(container) {
   const isPostPage = isSinglePostPage();
-  console.log('[Threads Saver] 當前頁面類型:', isPostPage ? '單一貼文頁面' : '首頁/Feed');
   if (isPostPage) {
     let content = extractContentFromDOM(container);
     if (!content) {
+      const hasMedia = !!(
+        container?.querySelector('img[src*="cdninstagram"]') ||
+        container?.querySelector('video')
+      );
+      if (hasMedia) return '';
       content = extractContentFromMeta();
     }
     return content;
