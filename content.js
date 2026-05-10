@@ -83,6 +83,8 @@ function extractContentFromDOM(container) {
       })
       .filter(span => !span.closest('button'))
       .filter(span => !span.closest('[role="button"]'))
+      .filter(span => !span.closest('h1') && !span.closest('[aria-label="直欄標題"]'))
+      .filter(span => !isLikelyThreadsFallbackDescription(span.textContent.trim()))
       .map(span => span.textContent.trim())
       .filter(Boolean);
     if (candidates.length) return candidates.join(' ');
