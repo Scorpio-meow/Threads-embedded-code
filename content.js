@@ -66,16 +66,16 @@ function isSinglePostPage() {
   return window.location.pathname.includes('/post/');
 }
 function extractContentFromDOM(container) {
+  const postPage0 = container.querySelector('[data-pagelet="threads_post_page_0"]');
+  const searchRoot = postPage0 || container;
   const selectors = [
     'span[class*="xo1l8bm"][dir="auto"] > span',
     'span[class*="xi7mnp6"][dir="auto"] > span',
   ];
-  const allSpans = Array.from(container.querySelectorAll(
-    selectors.map(s => s).join(', ')
-  ));
-  const replyBoundary = allSpans.find(s =>
-    /^回覆.+[…\.]{1,3}$/.test(s.textContent.trim())
-  );
+  const allSpans = Array.from(searchRoot.querySelectorAll(selectors.join(', ')));
+  const replyBoundary = !postPage0
+    ? allSpans.find(s => /^回覆.+[…\.]{1,3}$/.test(s.textContent.trim()))
+    : null;
   const beforeReply = replyBoundary
     ? allSpans.filter(s =>
       s.compareDocumentPosition(replyBoundary) & Node.DOCUMENT_POSITION_FOLLOWING
