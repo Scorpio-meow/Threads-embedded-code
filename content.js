@@ -396,8 +396,11 @@ async function processOpenEmbedDialogs() {
     }
     dialog.dataset.threadsSaverSaving = 'true';
     const postLink = extractPostLinkFromEmbedCode(embedCode);
-    const postElement = postLink ? findPostElementFromPostLink(postLink) : dialog.closest('article') || dialog.closest('[role="article"]');
-    const preContent = postElement ? extractPostContent(postElement) : '';
+    const postElement = postLink
+      ? findPostElementFromPostLink(postLink)
+      : dialog.closest('[data-pressable-container]') ||
+      dialog.closest('article') ||
+      dialog.closest('[role="article"]'); const preContent = postElement ? extractPostContent(postElement) : '';
     let preAuthor = '';
     let preAuthorUrl = '';
     if (postElement) {
@@ -441,9 +444,11 @@ function addSaveButtons() {
       let preContent = '';
       let preAuthor = '';
       let preAuthorUrl = '';
-      const postElement = embedButton.closest('article') ||
-        embedButton.closest('[role="article"]') ||
-        embedButton.closest('div[class*="x1lliihq"]');
+      const postElement =
+        embedButton.closest('[data-pressable-container]') ||
+        embedButton.closest('[data-pagelet="threads_post_page_0"]') ||
+        embedButton.closest('article') ||
+        embedButton.closest('[role="article"]');
       if (postElement) {
         console.log('[Threads Saver] 點擊前找到貼文容器元素');
         preContent = extractPostContent(postElement);
