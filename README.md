@@ -45,7 +45,7 @@ threads-embedded-code/
 
 ***
 
-## 🚀 安裝方式
+## 安裝方式
 
 1. 下載或 Clone 此專案到本機：
    ```bash
@@ -65,7 +65,7 @@ threads-embedded-code/
 
 ***
 
-## 💡 使用方式
+## 使用方式
 
 1. **儲存貼文**  
    在 Threads 上對任意貼文點選「⋯」→「取得內嵌程式碼」，擴充功能自動擷取並儲存。
@@ -84,7 +84,7 @@ threads-embedded-code/
 
 ***
 
-## 🛠 開發注意事項
+## 開發注意事項
 
 - **DOM 依賴**：`content.js` 依賴 Threads 目前的 DOM class 結構；若 Threads 更新版面，擷取邏輯需同步調整。
 - **效能考量**：批次更新透過 `chrome.scripting.executeScript` 逐一讀取貼文，資料量大時會增加瀏覽器負載，建議分批操作。
@@ -93,7 +93,7 @@ threads-embedded-code/
 
 ***
 
-## 📦 匯出格式說明
+## 匯出格式說明
 
 ### Embed Only JS
 ```js
@@ -123,4 +123,4 @@ const posts = [
 
 ***
 
-> ⚠️ **免責聲明**：本擴充功能為非官方工具，與 Meta / Threads 無任何隸屬關係。Threads 的 DOM 結構隨時可能改變，導致擷取功能暫時失效，請留意版本更新。
+> **免責聲明**：本擴充功能為非官方工具，與 Meta / Threads 無任何隸屬關係。Threads 的 DOM 結構隨時可能改變，導致擷取功能暫時失效，請留意版本更新。
