@@ -229,13 +229,7 @@ function extractPostInfoFromPage(requestedPostLink = '') {
     return null;
   }
   function isFallbackDescription(text) {
-    if (!text) {
-      return false;
-    }
-    return [
-      /查看\s*@[^。\n]+參與的最新對話/i,
-      /(?:\d+[.,]?\d*(?:萬|千)?位?\s*)?粉絲\s*•\s*[\d.,]+\s*則串文/i
-    ].some((pattern) => pattern.test(text));
+    return isLikelyThreadsFallbackDescription(text);
   }
   const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
   if (requestedPostLink && !requestedPostElement) {
@@ -281,8 +275,12 @@ function extractPostInfoFromPage(requestedPostLink = '') {
     if (contentSpans.length > 0) {
       content = Array.from(contentSpans)
         .filter(span => !span.closest('h1'))
-        .map(span => span.innerText)
-        .filter(text => text && text.trim())
+        .filter(span => !span.closest('button'))
+        .filter(span => !span.closest('[role="button"]'))
+        .filter(span => !span.closest('[contenteditable="true"]'))
+        .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+        .filter((text, index, array) => array.indexOf(text) === index)
         .join('\n');
     }
   }
@@ -291,8 +289,12 @@ function extractPostInfoFromPage(requestedPostLink = '') {
     if (xi7Spans.length > 0) {
       content = Array.from(xi7Spans)
         .filter(span => !span.closest('h1'))
-        .map(span => span.innerText)
-        .filter(text => text && text.trim())
+        .filter(span => !span.closest('button'))
+        .filter(span => !span.closest('[role="button"]'))
+        .filter(span => !span.closest('[contenteditable="true"]'))
+        .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+        .filter((text, index, array) => array.indexOf(text) === index)
         .join('\n');
     }
   }
@@ -331,6 +333,15 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
   }
 }
 
+function extractThreadsPostIdFromLink(link) {
+  if (!link || typeof link !== 'string') {
+    return '';
+  }
+  const normalizedLink = link.split('?')[0];
+  const match = normalizedLink.match(/\/post\/([^\/]+)$/i) || link.match(/\/post\/([^\/?]+)/i);
+  return match ? match[1] : '';
+}
+
 function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
   const actualPostId = extractThreadsPostIdFromLink(actualLink);
@@ -340,10 +351,24 @@ function isLikelyThreadsFallbackDescription(text) {
   if (!text) {
     return false;
   }
+  const normalizedText = String(text).replace(/\s+/g, ' ').trim();
   return [
+    /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
+    /^回覆[\s\S]*……$/i,
+    /^尚無回覆$/i,
+    /^查看動態$/i,
+    /^更多$/i,
+    /^返回$/i,
+    /^直欄標題$/i,
+    /^附加影音內容$/i,
+    /^新增 GIF$/i,
+    /^展開撰寫工具$/i,
+    /^分享$/i,
+    /^轉發$/i,
+    /^讚$/i,
     /查看\s*@[^。\n]+參與的最新對話/i,
     /(?:\d+[.,]?\d*(?:萬|千)?位?\s*)?粉絲\s*•\s*[\d.,]+\s*則串文/i
-  ].some((pattern) => pattern.test(text));
+  ].some((pattern) => pattern.test(normalizedText));
 }
 function isExpiredArticle(article) {
   return article?.status === 'expired' || !!article?.expiredAt || !!article?.expiredReason;
@@ -360,10 +385,12 @@ function clearArticleExpiredStatus(article) {
   delete article.expiredReason;
   delete article.expiredCheckedAt;
 }
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadArticles();
-  setupEventListeners();
-});
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadArticles();
+    setupEventListeners();
+  });
+}
 async function loadArticles() {
   const result = await chrome.storage.local.get(['savedArticles']);
   allArticles = result.savedArticles || [];
@@ -904,17 +931,19 @@ async function deleteArticle(articleId) {
   renderArticles();
   showToast('已刪除');
 }
-window.copyArticle = async function (articleId) {
-  const article = allArticles.find(a => a.id === articleId);
-  if (!article) return;
-  const textToCopy = `${article.author}\n\n${article.content}\n\n來源: ${article.postLink}`;
-  try {
-    await navigator.clipboard.writeText(textToCopy);
-    showToast('已複製到剪貼簿');
-  } catch (err) {
-    console.error('複製失敗:', err);
-  }
-};
+if (typeof window !== 'undefined') {
+  window.copyArticle = async function (articleId) {
+    const article = allArticles.find(a => a.id === articleId);
+    if (!article) return;
+    const textToCopy = `${article.author}\n\n${article.content}\n\n來源: ${article.postLink}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showToast('已複製到剪貼簿');
+    } catch (err) {
+      console.error('複製失敗:', err);
+    }
+  };
+}
 async function copyCodeBlock(articleId, blockIndex) {
   console.log('[Popup] copyCodeBlock called:', articleId, blockIndex);
   const article = allArticles.find(a => a.id === articleId);
@@ -928,20 +957,22 @@ async function copyCodeBlock(articleId, blockIndex) {
     showToast('複製失敗');
   }
 }
-window.copyAllCode = async function (articleId) {
-  const article = allArticles.find(a => a.id === articleId);
-  if (!article || !article.codeBlocks || article.codeBlocks.length === 0) return;
-  const allCode = article.codeBlocks.map((block, idx) =>
-    `// --- ${block.language.toUpperCase()} (Block ${idx + 1}) ---\n${block.code}`
-  ).join('\n\n');
-  const textToCopy = `${article.author}\n${article.postLink}\n\n${allCode}`;
-  try {
-    await navigator.clipboard.writeText(textToCopy);
-    showToast(`已複製 ${article.codeBlocks.length} 個程式碼區塊`);
-  } catch (err) {
-    console.error('複製失敗:', err);
-  }
-};
+if (typeof window !== 'undefined') {
+  window.copyAllCode = async function (articleId) {
+    const article = allArticles.find(a => a.id === articleId);
+    if (!article || !article.codeBlocks || article.codeBlocks.length === 0) return;
+    const allCode = article.codeBlocks.map((block, idx) =>
+      `// --- ${block.language.toUpperCase()} (Block ${idx + 1}) ---\n${block.code}`
+    ).join('\n\n');
+    const textToCopy = `${article.author}\n${article.postLink}\n\n${allCode}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showToast(`已複製 ${article.codeBlocks.length} 個程式碼區塊`);
+    } catch (err) {
+      console.error('複製失敗:', err);
+    }
+  };
+}
 async function copyEmbed(articleId) {
   console.log('[Popup] copyEmbed called with ID:', articleId);
   const article = allArticles.find(a => a.id === articleId);

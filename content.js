@@ -1,12 +1,14 @@
-if (!window.__threadsSaverInitialized) {
-  window.__threadsSaverInitialized = true;
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (!window.__threadsSaverInitialized) {
+    window.__threadsSaverInitialized = true;
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   } else {
     init();
   }
-} else {
-  init();
 }
 function isExtensionAlive() {
   try {
@@ -64,50 +66,53 @@ function isSinglePostPage() {
   return window.location.pathname.includes('/post/');
 }
 function extractContentFromDOM(container) {
-  let content = '';
-  const contentSpans = container.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
-  if (contentSpans.length > 0) {
-    content = Array.from(contentSpans)
+  const selectors = [
+    'span[class*="xo1l8bm"][dir="auto"] > span',
+    'span[class*="xi7mnp6"][dir="auto"] > span',
+    'div.x1a6qonq span[dir="auto"] > span'
+  ];
+  for (const selector of selectors) {
+    const candidateTexts = Array.from(container.querySelectorAll(selector))
       .filter(span => !span.closest('h1'))
-      .map(span => span.innerText)
-      .filter(text => text && text.trim())
-      .join('\n');
-    if (content) {
-      console.log('[Threads Saver] 從 xo1l8bm 選擇器提取到內容');
-      return content;
+      .filter(span => !span.closest('button'))
+      .filter(span => !span.closest('[role="button"]'))
+      .filter(span => !span.closest('[contenteditable="true"]'))
+      .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
+      .filter(text => text && !isLikelyThreadsFallbackDescription(text));
+    const uniqueTexts = [...new Set(candidateTexts)];
+    if (uniqueTexts.length > 0) {
+      console.log('[Threads Saver] 從 Threads 內容選擇器提取到內容:', selector);
+      return uniqueTexts.join('\n');
     }
   }
-  const xi7Spans = container.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
-  if (xi7Spans.length > 0) {
-    content = Array.from(xi7Spans)
-      .filter(span => !span.closest('h1'))
-      .map(span => span.innerText)
-      .filter(text => text && text.trim())
-      .join('\n');
-    if (content) {
-      console.log('[Threads Saver] 從 xi7mnp6 選擇器提取到內容');
-      return content;
-    }
+  return '';
+}
+function isLikelyThreadsFallbackDescription(text) {
+  if (!text) {
+    return false;
   }
-  const containerSpans = container.querySelectorAll('div.x1a6qonq span[dir="auto"] > span');
-  if (containerSpans.length > 0) {
-    content = Array.from(containerSpans)
-      .filter(span => !span.closest('h1'))
-      .map(span => span.innerText)
-      .filter(text => text && text.trim())
-      .join('\n');
-    if (content) {
-      console.log('[Threads Saver] 從 x1a6qonq 容器提取到內容');
-      return content;
-    }
-  }
-  return content;
+  const normalizedText = String(text).replace(/\s+/g, ' ').trim();
+  return [
+    /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
+    /^回覆[\s\S]*……$/i,
+    /^尚無回覆$/i,
+    /^查看動態$/i,
+    /^更多$/i,
+    /^返回$/i,
+    /^直欄標題$/i,
+    /^附加影音內容$/i,
+    /^新增 GIF$/i,
+    /^展開撰寫工具$/i,
+    /^分享$/i,
+    /^轉發$/i,
+    /^讚$/i
+  ].some((pattern) => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {
   const metaDescription = document.querySelector('meta[property="og:description"]');
   if (metaDescription) {
     const content = metaDescription.getAttribute('content') || '';
-    if (content && !content.includes('加入 Threads 即可分享意見')) {
+    if (content && !content.includes('加入 Threads 即可分享意見') && !isLikelyThreadsFallbackDescription(content)) {
       console.log('[Threads Saver] 從 meta og:description 提取到內容');
       return content;
     }
