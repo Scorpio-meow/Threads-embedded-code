@@ -546,10 +546,8 @@ function applyFilters() {
       const embedMatch = (article.embedCode || '').toLowerCase().includes(searchTerm);
       return contentMatch || authorMatch || tagsMatch || codeMatch || embedMatch;
     }
-
     return true;
   });
-
   sortArticles();
   renderArticles();
 }
@@ -863,7 +861,6 @@ function updateSelectionUI() {
   const countElement = document.getElementById('articleCount');
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   const selectionInfo = document.getElementById('selectionInfo');
-
   if (selectedArticleIds.size > 0) {
     countElement.textContent = `${filteredArticles.length} 篇 (已選 ${selectedArticleIds.size})`;
     if (selectionInfo) {
@@ -1009,7 +1006,6 @@ async function exportAllEmbedCodes() {
     const escapedCode = blockquoteOnly
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'");
-
     return `  '${escapedCode}'`;
   }).join(',\n');
   const jsContent = `const posts = [

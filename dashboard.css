@@ -425,7 +425,7 @@ body {
   justify-content: space-between;
   align-items: center;
   -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .batch-left {
