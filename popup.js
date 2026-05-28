@@ -326,7 +326,6 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
     return '#';
   }
 }
-
 function extractThreadsPostIdFromLink(link) {
   if (!link || typeof link !== 'string') {
     return '';
@@ -335,7 +334,6 @@ function extractThreadsPostIdFromLink(link) {
   const match = normalizedLink.match(/\/post\/([^\/]+)$/i) || link.match(/\/post\/([^\/?]+)/i);
   return match ? match[1] : '';
 }
-
 function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
   const actualPostId = extractThreadsPostIdFromLink(actualLink);
@@ -396,15 +394,18 @@ async function loadArticles() {
   filteredArticles = [...allArticles];
   sortArticles();
   renderArticles();
-  // 載入後更新篩選選項
   updateFilterValueOptions();
 }
 function setupEventListeners() {
+  const openDashboardBtn = document.getElementById('openDashboardBtn');
+  if (openDashboardBtn) {
+    openDashboardBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'dashboard.html' });
+    });
+  }
   document.getElementById('searchInput').addEventListener('input', (e) => {
     applyFilters();
   });
-
-  // 篩選類型變更
   const filterSelect = document.getElementById('filterSelect');
   if (filterSelect) {
     filterSelect.addEventListener('change', (e) => {
@@ -414,8 +415,6 @@ function setupEventListeners() {
       applyFilters();
     });
   }
-
-  // 篩選值變更
   const filterValueSelect = document.getElementById('filterValueSelect');
   if (filterValueSelect) {
     filterValueSelect.addEventListener('change', (e) => {
@@ -611,7 +610,6 @@ function updateFilterValueOptions() {
     filterValueContainer.style.display = 'none';
   }
 }
-
 function sortArticles() {
   const [field, order] = currentSort.split('-');
   filteredArticles.sort((a, b) => {
@@ -1120,9 +1118,7 @@ async function handleImportFile(event) {
       if (target && target.id === 'importFileInput' && target.parentNode) {
         target.parentNode.removeChild(target);
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) { }
   }
 }
 function parseJsEmbedFile(content) {

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threads 程式碼儲存器 - 控制面板</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+  <header class="navbar">
+    <div class="nav-left">
+      <div class="logo">
+        <svg aria-label="Threads" height="24" role="img" viewBox="0 0 192 192" width="24"
+          xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+          <path
+            d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.7443C82.2364 44.7443 69.7731 51.1409 62.102 62.7807L75.881 72.2328C81.6116 63.5383 90.6052 61.6848 97.2286 61.6848C97.3051 61.6848 97.3819 61.6848 97.4576 61.6855C105.707 61.7381 111.932 64.1366 115.961 68.814C118.893 72.2193 120.854 76.925 121.825 82.8638C114.511 81.6207 106.601 81.2385 98.145 81.7233C74.3247 83.0954 59.0111 96.9879 60.0396 116.292C60.5615 126.084 65.4397 134.508 73.775 140.011C80.8224 144.663 89.899 146.938 99.3323 146.423C111.79 145.74 121.563 140.987 128.381 132.296C133.559 125.696 136.834 117.143 138.28 106.366C144.217 109.949 148.617 114.664 151.047 120.332C155.179 129.967 155.42 145.8 142.501 158.708C131.182 170.016 117.576 174.908 97.0135 175.059C74.2042 174.89 56.9538 167.575 45.7381 153.317C35.2355 139.966 29.8077 120.682 29.6052 96C29.8077 71.3178 35.2355 52.0336 45.7381 38.6827C56.9538 24.4249 74.2039 17.11 97.0132 16.9405C119.988 17.1113 137.539 24.4614 149.184 38.788C154.894 45.8136 159.199 54.6488 162.037 64.9503L178.184 60.6422C174.744 47.9622 169.331 37.0357 161.965 27.974C147.036 9.60668 125.202 0.195148 97.0695 0H96.9569C68.8816 0.19447 47.2921 9.6418 32.7883 28.0793C19.8819 44.4864 13.2244 67.3157 13.0007 95.9325L13 96L13.0007 96.0675C13.2244 124.684 19.8819 147.514 32.7883 163.921C47.2921 182.358 68.8816 191.806 96.9569 192H97.0695C122.03 191.827 139.624 185.292 154.118 170.811C173.081 151.866 172.51 128.119 166.26 113.541C161.776 103.087 153.227 94.5962 141.537 88.9883ZM98.4405 129.507C88.0005 130.095 77.1544 125.409 76.6196 115.372C76.2232 107.93 81.9158 99.626 99.0812 98.6368C101.047 98.5234 102.976 98.468 104.871 98.468C111.106 98.468 116.939 99.0737 122.242 100.233C120.264 124.935 108.662 128.946 98.4405 129.507Z" />
+        </svg>
+      </div>
+      <h1 class="nav-title">Threads 程式碼儲存器 <span class="badge">控制面板</span></h1>
+    </div>
+    <div class="nav-right">
+      <div class="global-stats">
+        <span class="stat-item">已儲存：<strong id="totalSavedCount">0</strong> 篇</span>
+        <span class="stat-item">失效連結：<strong id="totalExpiredCount" class="danger-text">0</strong> 篇</span>
+      </div>
+      <a href="https://www.threads.com/" target="_blank" rel="noopener noreferrer" class="threads-link">
+        前往 Threads
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="7" y1="17" x2="17" y2="7" />
+          <polyline points="7 7 17 7 17 17" />
+        </svg>
+      </a>
+    </div>
+  </header>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3>全文搜尋</h3>
+        <div class="search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input type="text" id="searchInput" placeholder="搜尋內文、程式碼、作者或標籤...">
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>整理與篩選</h3>
+        <div class="control-group">
+          <label for="sortSelect">排序依據</label>
+          <select id="sortSelect" class="form-select">
+            <option value="savedAt-desc">儲存時間 (新到舊)</option>
+            <option value="savedAt-asc">儲存時間 (舊到新)</option>
+            <option value="timestamp-desc">發文時間 (新到舊)</option>
+            <option value="timestamp-asc">發文時間 (舊到新)</option>
+            <option value="author-asc">作者 (A-Z)</option>
+            <option value="author-desc">作者 (Z-A)</option>
+            <option value="codeCount-desc">程式碼數量 (多到少)</option>
+            <option value="codeCount-asc">程式碼數量 (少到多)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="filterSelect">篩選類型</label>
+          <select id="filterSelect" class="form-select">
+            <option value="all">全部文章</option>
+            <option value="author">按作者</option>
+            <option value="tag">按標籤</option>
+            <option value="noTimestamp">無發文時間</option>
+            <option value="expired">失效貼文</option>
+          </select>
+        </div>
+        <div class="control-group is-hidden" id="filterValueContainer">
+          <label for="filterValueSelect">篩選數值</label>
+          <select id="filterValueSelect" class="form-select">
+            <option value="">全部</option>
+          </select>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>快速統計</h3>
+        <div class="stats-panel">
+          <div class="mini-stat-card">
+            <span class="label">作者總數</span>
+            <span class="val" id="uniqueAuthorsCount">0</span>
+          </div>
+          <div class="mini-stat-card">
+            <span class="label">標籤總數</span>
+            <span class="val" id="uniqueTagsCount">0</span>
+          </div>
+        </div>
+        <div class="tags-cloud-wrapper">
+          <div class="small-title">常用標籤</div>
+          <div class="tags-cloud" id="tagsCloud">
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>備份與維護</h3>
+        <div class="actions-grid">
+          <button class="btn btn-primary" id="exportBtn" title="匯出簡易嵌入代碼 (.js)">匯出 JS 嵌入代碼</button>
+          <button class="btn btn-primary" id="exportFullBtn" title="匯出包含貼文詳細資料的備份檔案 (.js)">匯出完整資料</button>
+          <button class="btn id-btn" id="importBtn">匯入資料檔案</button>
+        </div>
+        <div class="maintenance-actions">
+          <button class="btn btn-warning" id="refreshAllBtn">重新生成嵌入代碼</button>
+          <button class="btn btn-warning" id="updateTimestampsBtn" title="開啟暫時分頁，向 Threads 擷取最新發文時間與內容">更新貼文資料</button>
+          <button class="btn btn-danger" id="clearBtn">清除全部資料</button>
+        </div>
+      </div>
+    </aside>
+    <main class="main-content">
+      <div class="batch-bar">
+        <div class="batch-left">
+          <label class="checkbox-container">
+            <input type="checkbox" id="selectAllCheckbox">
+            <span class="checkmark"></span>
+            <span class="label-text">全選目前頁面</span>
+          </label>
+          <span id="selectionInfo" class="selection-info-text is-hidden">已選取 0 篇</span>
+        </div>
+        <div class="batch-right batch-actions-disabled" id="batchActionsContainer">
+          <button class="btn btn-small" id="batchCopyEmbedBtn">批次複製 Embed</button>
+          <button class="btn btn-small btn-warning" id="batchRegenBtn">批次重新生成</button>
+          <button class="btn btn-small btn-danger" id="batchDeleteBtn">批次刪除</button>
+        </div>
+      </div>
+      <div class="grid-container" id="articlesContainer">
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          <p class="empty-title">尚未儲存任何程式碼</p>
+          <p class="empty-description">請在 Threads 上有程式碼的貼文旁，點選「取得內嵌程式碼」，擴充功能會自動儲存至此面板。</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h4 id="modalTitle">確認操作</h4>
+        <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="modalMessage">您確定要執行此操作嗎？此動作將無法還原。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="modalCancelBtn">取消</button>
+        <button class="btn btn-danger" id="modalConfirmBtn">確定</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h4>匯入資料選項</h4>
+        <button class="modal-close-btn" id="importModalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="importModalMessage">偵測到已準備匯入的文章資料。請選擇匯入模式：</p>
+        <div class="import-mode-options">
+          <div class="import-option" id="importModeMerge">
+            <h5>合併資料 (推薦)</h5>
+            <p>與現有資料進行比對，僅加入不存在的貼文，不會覆蓋現有內容。</p>
+          </div>
+          <div class="import-option" id="importModeOverwrite">
+            <h5>完全覆寫</h5>
+            <p>清除所有現有儲存的貼文，以匯入的檔案內容完全取代。</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="importModalCancelBtn">取消匯入</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast-container" id="toastContainer"></div>
+  <input type="file" id="importFileInput" accept=".js,.json" class="is-hidden" title="匯入資料檔案">
+  <script src="dashboard.js"></script>
+</body>
+
+</html>

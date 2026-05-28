@@ -48,6 +48,12 @@
       align-items: center;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .header h1 {
       font-size: 18px;
       font-weight: 700;
@@ -131,6 +137,21 @@
       background: rgba(255, 48, 64, 0.05);
     }
 
+    .btn-dashboard {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      border-color: #3b82f6;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-dashboard:hover {
+      background: linear-gradient(135deg, #1e293b, #3b82f6);
+      border-color: #3b82f6;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    }
+
     .btn-small {
       padding: 4px 10px;
       font-size: 11px;
@@ -165,6 +186,10 @@
       font-size: 12px;
       color: #0095f6;
       font-weight: 600;
+    }
+
+    .is-hidden {
+      display: none;
     }
 
     .sort-container {
@@ -501,7 +526,19 @@
 <body>
   <div class="header">
     <h1>已儲存的程式碼</h1>
-    <span class="count" id="articleCount">0 篇</span>
+    <div class="header-actions">
+      <button class="btn btn-small btn-dashboard" id="openDashboardBtn" title="開啟全頁儀表板">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
+        </svg>
+        儀表板
+      </button>
+      <span class="count" id="articleCount">0 篇</span>
+    </div>
   </div>
 
   <div class="search-box">
@@ -513,7 +550,7 @@
         <input type="checkbox" id="selectAllCheckbox">
         <span>全選</span>
       </label>
-      <span id="selectionInfo" class="selection-info" style="display: none;"></span>
+      <span id="selectionInfo" class="selection-info is-hidden"></span>
       <button class="btn btn-small" id="clearSelectionBtn">清除選取</button>
     </div>
     <div class="sort-container">
@@ -538,8 +575,8 @@
         <option value="noTimestamp">無發文時間</option>
         <option value="expired">失效貼文</option>
       </select>
-      <div id="filterValueContainer" class="filter-value-container" style="display: none;">
-        <select id="filterValueSelect" class="filter-select">
+      <div id="filterValueContainer" class="filter-value-container is-hidden">
+        <select id="filterValueSelect" class="filter-select" title="篩選數值">
           <option value="">全部</option>
         </select>
       </div>

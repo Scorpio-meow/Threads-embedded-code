@@ -30,6 +30,7 @@
   "action": {
     "default_popup": "popup.html"
   },
+  "options_page": "dashboard.html",
   "icons": {
     "128": "favicon.png"
   }
