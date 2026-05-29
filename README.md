@@ -1,126 +1,267 @@
-# Threads 程式碼儲存器 (Threads Code Saver)
+# Threads 程式碼儲存器
 
-> 一個 Manifest V3 瀏覽器擴充功能，專門從 [Threads](https://www.threads.com/) 貼文自動擷取、儲存與管理可嵌入的 embed code。
+> 一個 Manifest V3 瀏覽器擴充功能，專門從 [Threads](https://www.threads.com/) 貼文自動擷取、儲存、管理與匯出可嵌入的程式碼與貼文資料。  
+> 所有資料都保存在瀏覽器本機 `chrome.storage.local`，不需要後端、資料庫或額外 API。
 
-***
+## 這個專案能做什麼
 
-## 功能亮點
+- 在 Threads 貼文的「取得內嵌程式碼」流程上，自動攔截並儲存資料
+- 自動整理貼文連結、作者、發文時間、內文、標籤、程式碼區塊與 embed code
+- 偵測失效貼文、重新導向與 fallback summary，避免把錯誤內容當成正常貼文
+- 提供 popup 快速檢視與全頁 dashboard 深度管理兩種介面
+- 支援搜尋、排序、篩選、批次操作、匯出、匯入與重新生成 embed code
 
-### 自動擷取
-- 監聽 Threads「取得內嵌程式碼」對話框觸發
-- 自動解析並儲存：貼文連結、作者、發文時間、內文、程式碼區塊與 embed code
-- 失效貼文自動辨識（重新導向、404、fallback summary）
+## 主要功能
 
-### 資料管理
-| 功能 | 說明 |
-|------|------|
-| 搜尋 | 依內文、作者、標籤、程式碼內容、embed code 全文檢索 |
-| 排序 | 儲存時間 / 發文時間 / 作者 / 程式碼數量 |
-| 篩選 | 依作者、標籤、未更新時間、失效狀態 |
-| 批次操作 | 批次重新生成 embed code、更新時間與內文 |
+### 自動擷取與儲存
 
-### 複製與匯出
-- 一鍵複製單篇 embed code
-- **Embed Only JS**：僅含可直接嵌入的 `blockquote` 陣列
-- **Full Data JS**：含 `embedCode`、`postLink`、`author`、`content`、`timestamp`、`timestampTitle`、`savedAt`、`tags`、`status` 及失效資訊
+- 監看 Threads 頁面中可觸發 embed code 的按鈕與對話框
+- 盡可能從貼文 DOM、embed 對話框與 meta 資訊中補齊資料
+- 儲存時會自動去重，同一篇貼文以 `postLink` 更新既有紀錄，不會無限重複新增
+- 自動抽取：
+   - 貼文內文
+   - 作者與作者連結
+   - 發文時間與時間標題
+   - 程式碼區塊與推測語言
+   - Hashtag 與技術關鍵字標籤
+   - 原始 embed code
 
-### 匯入與備份
-- 支援 `.json`（陣列格式或 `{ savedArticles: [...] }` 結構）
-- 支援 `.js`（`posts = [...]` 格式）
-- 匯入時可選擇**合併**或**覆寫**現有資料
+### 管理與瀏覽
 
-***
+- 全文搜尋：內文、程式碼、作者、標籤、embed code
+- 排序：儲存時間、發文時間、作者、程式碼數量
+- 篩選：全部、作者、標籤、無發文時間、失效貼文
+- 標籤雲與快速統計
+- 單篇刪除、批次刪除、清除全部資料
+
+### 匯出與匯入
+
+- 匯出簡易版 JS：只包含可直接嵌入的 `blockquote` 內容
+- 匯出完整資料 JS：包含貼文可攜用的完整欄位
+- 支援匯入 `.json` 與 `.js`
+- 匯入時可選擇合併或覆寫
+
+### 維護工具
+
+- 重新生成 embed code
+- 透過背景分頁重新抓取 Threads 貼文內容與時間
+- 自動標記 redirect、post-not-found、fallback-summary 等失效狀態
+- 提供本機備份與匯出以便長期保存
+
+## 介面概覽
+
+| 介面 | 用途 |
+| --- | --- |
+| `popup.html` | 工具列快速面板，用來快速搜尋、匯出、匯入與進入儀表板 |
+| `dashboard.html` | 全頁控制面板，適合大量資料管理、批次操作與維護 |
+| `content.js` | 注入 Threads 頁面，負責擷取與儲存資料 |
+| `styles.css` | Threads 頁面上的輔助樣式 |
+
+## 技術棧
+
+- **語言**：JavaScript
+- **標記語言**：HTML
+- **樣式**：CSS
+- **擴充功能規範**：Chrome Extension Manifest V3
+- **瀏覽器 API**：`chrome.storage.local`、`chrome.tabs`、`chrome.scripting`
+- **執行模式**：純前端、本機儲存，沒有後端服務
 
 ## 專案結構
 
-```
+```text
 threads-embedded-code/
-├── manifest.json    # Manifest V3 設定、權限宣告
-├── content.js       # 注入 Threads 頁面，監聽 embed 觸發並擷取貼文內容
-├── popup.html       # 彈出視窗 UI 結構
-├── popup.js         # 主要業務邏輯：清單渲染、搜尋、篩選、匯出匯入、批次更新
-├── styles.css       # 注入 Threads 頁面的輔助樣式（儲存提示等）
-└── favicon.png      # 擴充功能圖示（128×128）
+├── manifest.json      # MV3 設定、權限與入口定義
+├── content.js         # 注入 Threads 頁面，擷取貼文與 embed 資料
+├── styles.css         # 注入 Threads 頁面的輔助樣式
+├── popup.html         # 工具列彈出視窗 UI
+├── popup.css          # 工具列彈出視窗樣式
+├── popup.js           # popup 互動邏輯：搜尋、匯出、匯入、快速管理
+├── dashboard.html     # 全頁控制面板 UI
+├── dashboard.css      # 全頁控制面板樣式
+├── dashboard.js       # 深度管理邏輯：批次操作、統計、更新、刪除
+├── favicon.png        # 擴充功能圖示
+└── README.md          # 專案說明文件
 ```
 
-***
+## 安裝與啟用
 
-## 安裝方式
+### 1. 取得專案
 
-1. 下載或 Clone 此專案到本機：
-   ```bash
-   git clone https://github.com/Scorpio-meow/threads-embedded-code.git
-   ```
+```bash
+git clone https://github.com/Scorpio-meow/threads-embedded-code.git
+```
 
-2. 開啟瀏覽器擴充功能頁面：
-   - **Google Chrome**：`chrome://extensions/`
-   - **Microsoft Edge**：`edge://extensions/`
-   - **Brave / Opera**：同 Chrome 路徑
+### 2. 開啟瀏覽器擴充功能頁面
 
-3. 啟用右上角的 **開發人員模式**。
+- **Google Chrome**：`chrome://extensions/`
+- **Microsoft Edge**：`edge://extensions/`
+- **Brave / Opera / 其他 Chromium 瀏覽器**：使用相同的擴充功能管理頁
 
-4. 點擊 **載入未封裝項目**，選擇剛剛 Clone 的 `threads-embedded-code` 資料夾。
+### 3. 開啟開發人員模式
 
-5. 安裝完成後，建議將擴充功能**釘選到工具列**以便快速存取。
+在右上角切換 **開發人員模式**。
 
-***
+### 4. 載入未封裝項目
+
+點擊 **載入未封裝項目**，選擇這個專案資料夾。
+
+### 5. 釘選擴充功能
+
+安裝完成後，建議把擴充功能釘選到工具列，方便快速開啟 popup 與 dashboard。
+
+### 6. 更新程式後重新載入
+
+修改檔案後，回到擴充功能頁面按 **重新載入**，再刷新 Threads 分頁。
+
+> 這個專案不需要 `npm install`、`pnpm install` 或任何 build 步驟。
 
 ## 使用方式
 
-1. **儲存貼文**  
-   在 Threads 上對任意貼文點選「⋯」→「取得內嵌程式碼」，擴充功能自動擷取並儲存。
+### 快速儲存 Threads 貼文
 
-2. **管理資料**  
-   點擊工具列的擴充功能圖示，在彈出面板中搜尋、篩選、排序、刪除或批次操作。
+1. 開啟 Threads 任一含程式碼的貼文
+2. 點擊貼文選單中的 **取得內嵌程式碼**
+3. 擴充功能會自動擷取並儲存資料
+4. 若同一篇貼文再次被儲存，現有紀錄會被更新
 
-3. **更新內容**  
-   點選「更新資料」重新訪問 Threads 貼文，刷新發文時間、內文並自動標記失效貼文。
+### 在 popup 中快速管理
 
-4. **重新生成 embed code**  
-   當 Threads 更新嵌入結構時，可對單篇、已選取或全部貼文重新生成 embed code。
+- 查看目前儲存數量
+- 搜尋作者、內文、程式碼、標籤或 embed code
+- 選取多筆資料進行匯出或操作
+- 一鍵前往全頁儀表板
 
-5. **匯出 / 匯入**  
-   在面板內選擇匯出格式（embed only 或 full data），或從 `.json` / `.js` 匯入備份，支援合併或覆寫。
+### 在 dashboard 中深度管理
 
-***
+- 使用全文搜尋、排序與篩選
+- 檢視作者分布、標籤雲與快速統計
+- 批次複製 embed code
+- 批次重新生成 embed code
+- 批次刪除選取文章
+- 更新貼文時間與內容，並標記失效貼文
 
-## 開發注意事項
+### 匯出與匯入
 
-- **DOM 依賴**：`content.js` 依賴 Threads 目前的 DOM class 結構；若 Threads 更新版面，擷取邏輯需同步調整。
-- **效能考量**：批次更新透過 `chrome.scripting.executeScript` 逐一讀取貼文，資料量大時會增加瀏覽器負載，建議分批操作。
-- **Fallback 過濾**：`content.js` 與 `popup.js` 均含 fallback 文本過濾邏輯，防止 Threads 介面輔助文字被誤判為貼文內容。
-- **版本**：目前為 `v1.2.0`，使用 Manifest V3 規範。
+- 匯出 JS 備份時，可選擇：
+   - **Embed Only**：只有可嵌入的 blockquote 內容
+   - **Full Data**：包含完整貼文資料與失效資訊
+- 匯入時支援：
+   - `.json` 陣列
+   - `{ savedArticles: [...] }`
+   - `.js` 的 `const posts = [...]` 或 `posts = [...]`
 
-***
+## 工作流程
 
-## 匯出格式說明
-
-### Embed Only JS
-```js
-const posts = [
-  { embedCode: '<blockquote class="text-post-media" ...' },
-  ...
-];
+```mermaid
+flowchart LR
+   A[Threads 貼文頁] --> B[content.js 監看 embed 流程]
+   B --> C[擷取 DOM / meta / dialog 資訊]
+   C --> D[整理成 savedArticles 資料]
+   D --> E[chrome.storage.local]
+   E --> F[popup / dashboard 顯示與管理]
+   F --> G[匯出 / 匯入 / 更新 / 批次維護]
 ```
 
-### Full Data JS
+## 資料格式
+
+### 本機儲存的資料樣貌
+
+實際儲存在瀏覽器中的單筆資料大致如下：
+
 ```js
-const posts = [
-  {
-    embedCode: '...',
-    postLink: 'https://www.threads.com/@user/post/xxx',
-    author: '@username',
-    content: '貼文內文...',
-    timestamp: '2025-01-01T00:00:00Z',
-    timestampTitle: '2025年1月1日',
-    savedAt: '2025-01-02T00:00:00Z',
-    tags: ['tag1', 'tag2'],
-    status: 'active'  // 或 'invalid'
-  },
-  ...
-];
+{
+   id: "embed_...",
+   postLink: "https://www.threads.com/@user/post/xxx",
+   embedCode: "<blockquote ...>",
+   timestamp: "2026-05-29T00:00:00.000Z",
+   timestampTitle: "2026年5月29日",
+   savedAt: "2026-05-29T00:00:00.000Z",
+   content: "貼文內文...",
+   author: "@username",
+   authorUrl: "https://www.threads.com/@username",
+   tags: ["JavaScript", "React"],
+   codeBlocks: [
+      {
+         type: "markdown_block",
+         code: "console.log('hello')",
+         language: "javascript",
+         index: 1
+      }
+   ],
+   codeCount: 1,
+   status: "active",
+   expiredAt: "",
+   expiredReason: "",
+   expiredCheckedAt: ""
+}
 ```
 
-***
+### 匯出的完整資料
 
-> **免責聲明**：本擴充功能為非官方工具，與 Meta / Threads 無任何隸屬關係。Threads 的 DOM 結構隨時可能改變，導致擷取功能暫時失效，請留意版本更新。
+完整匯出主要聚焦可攜性，欄位包含：
+
+- `embedCode`
+- `postLink`
+- `author`
+- `content`
+- `timestamp`
+- `timestampTitle`
+- `savedAt`
+- `tags`
+- `status`
+- `expiredAt`
+- `expiredReason`
+- `expiredCheckedAt`
+
+> `codeBlocks` 與 `codeCount` 會保留在本機資料中，方便介面排序與分析。
+
+## 權限與隱私
+
+| 權限 | 用途 |
+| --- | --- |
+| `storage` | 本機保存貼文與 embed 資料 |
+| `tabs` | 背景開啟 Threads 分頁以更新資料 |
+| `scripting` | 對 Threads 頁面注入擷取邏輯 |
+| `host_permissions` | 只存取 `threads.com` 與 `www.threads.com` |
+
+- 本專案沒有伺服器端，也沒有把資料送到第三方服務
+- 你的資料只會留在本機瀏覽器裡
+- 若要搬機或重灌，請先匯出備份
+
+## 開發與維護
+
+- `content.js` 依賴 Threads 目前的 DOM 結構；Threads 改版後，選擇器可能要同步調整
+- `dashboard.js` 會透過背景分頁重新抓取貼文，資料量大時建議分批操作
+- 若按鈕或內容抓不到，先刷新 Threads 頁面，再重新載入擴充功能
+- 修改 `popup.html`、`popup.css`、`dashboard.html`、`dashboard.css` 或 `content.js` 後，記得在擴充功能頁面重新載入
+
+### 常見問題
+
+**Q：沒有看到儲存按鈕或無法儲存？**
+
+- 確認目前在 `threads.com` 或 `www.threads.com`
+- 確認已登入 Threads
+- 重新載入擴充功能並刷新頁面
+
+**Q：更新資料後被標成失效？**
+
+- 這通常表示貼文被重新導向、刪除，或頁面只剩 fallback summary
+
+**Q：匯入失敗？**
+
+- 檔案格式可能不是支援的 `.json` / `.js`
+- `.js` 檔請使用 `posts = [...]` 或 `const posts = [...]`
+
+**Q：Threads 改版後抓不到內容？**
+
+- 這個專案高度依賴 Threads 的 DOM 與 aria/label 結構
+- 需要更新 `content.js` 與 `dashboard.js` 的選擇器
+
+## 版本資訊
+
+- 目前版本：`v1.2.0`
+- 擴充功能規範：Manifest V3
+
+## 免責聲明
+
+本擴充功能為非官方工具，與 Meta / Threads 無任何隸屬關係。Threads 的介面與 DOM 結構隨時可能變動，若擷取邏輯暫時失效，通常需要跟著 Threads 的更新調整選擇器。
