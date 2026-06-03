@@ -717,40 +717,59 @@ async function updateAllTimestamps() {
   );
   if (!confirmed) return;
   showToast(`正在背景更新資料... (0/${articlesNeedingUpdate.length})`);
+  
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  for (const article of articlesNeedingUpdate) {
-    currentIndex++;
-    try {
-      const postInfo = await fetchPostInfoViaTab(article.postLink);
-      if (postInfo) {
-        if (postInfo.status === 'expired') {
-          markArticleAsExpired(article, postInfo.reason);
+  
+  const maxConcurrency = 3;
+  const tasks = [...articlesNeedingUpdate];
+  
+  const runWorker = async () => {
+    while (tasks.length > 0) {
+      const article = tasks.shift();
+      if (!article) break;
+      
+      let localIndex = 0;
+      try {
+        const postInfo = await fetchPostInfoViaTab(article.postLink);
+        currentIndex++;
+        localIndex = currentIndex;
+        
+        if (postInfo) {
+          if (postInfo.status === 'expired') {
+            markArticleAsExpired(article, postInfo.reason);
+            failCount++;
+          } else {
+            clearArticleExpiredStatus(article);
+            if (postInfo.datetime) {
+              article.timestamp = postInfo.datetime;
+              article.timestampTitle = postInfo.title || '';
+            }
+            if (postInfo.content && !postInfo.content.includes('加入 Threads 即可分享意見')) {
+              article.content = postInfo.content;
+            }
+            article.timestampUpdatedAt = new Date().toISOString();
+            successCount++;
+          }
+        } else {
           failCount++;
-          continue;
         }
-        clearArticleExpiredStatus(article);
-        if (postInfo.datetime) {
-          article.timestamp = postInfo.datetime;
-          article.timestampTitle = postInfo.title || '';
-        }
-        if (postInfo.content && !postInfo.content.includes('加入 Threads 即可分享意見')) {
-          article.content = postInfo.content;
-        }
-        article.timestampUpdatedAt = new Date().toISOString();
-        successCount++;
-      } else {
+      } catch (err) {
+        console.error('[Dashboard] 擷取錯誤:', err);
         failCount++;
       }
-    } catch (err) {
-      console.error('[Dashboard] 擷取錯誤:', err);
-      failCount++;
+      
+      showToast(`更新進度: ${localIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
     }
-    if (currentIndex % 3 === 0 || currentIndex === articlesNeedingUpdate.length) {
-      showToast(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
-    }
+  };
+  
+  const workers = [];
+  for (let i = 0; i < Math.min(maxConcurrency, articlesNeedingUpdate.length); i++) {
+    workers.push(runWorker());
   }
+  await Promise.all(workers);
+  
   await chrome.storage.local.set({ savedArticles: allArticles });
   selectedArticleIds.clear();
   calculateStatistics();
@@ -767,7 +786,6 @@ async function fetchPostInfoViaTab(postLink) {
       active: false
     });
     await waitForTabLoad(tab.id);
-    await new Promise(resolve => setTimeout(resolve, 2500));
     const loadedTab = await chrome.tabs.get(tab.id);
     if (!isSameThreadsPostLink(safeUrl, loadedTab?.url || '')) {
       await chrome.tabs.remove(tab.id);
@@ -801,7 +819,7 @@ function waitForTabLoad(tabId) {
     const timeout = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
       resolve();
-    }, 15000);
+    }, 8000);
     const listener = (updatedTabId, changeInfo) => {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
         clearTimeout(timeout);
@@ -812,7 +830,7 @@ function waitForTabLoad(tabId) {
     chrome.tabs.onUpdated.addListener(listener);
   });
 }
-function extractPostInfoFromPage(requestedPostLink = '') {
+async function extractPostInfoFromPage(requestedPostLink = '') {
   function createExpiredPostResult(reason) {
     return {
       status: 'expired',
@@ -866,86 +884,121 @@ function extractPostInfoFromPage(requestedPostLink = '') {
       /^附帶原始貼文的回覆內容$/,
     ].some(pattern => pattern.test(normalizedText));
   }
-  const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
-  if (requestedPostLink && !requestedPostElement) {
-    return createExpiredPostResult('post-not-found');
-  }
-  const sourceRoot = requestedPostElement || document;
-  let datetime = null;
-  let title = '';
-  let content = '';
-  const timeElement = requestedPostElement?.querySelector('time[datetime]') || null;
-  if (timeElement) {
-    datetime = timeElement.getAttribute('datetime');
-    title = timeElement.getAttribute('title') || '';
-  }
-  if (!datetime) {
-    const metaTime = document.querySelector('meta[property="article:published_time"]');
-    if (metaTime) {
-      datetime = metaTime.getAttribute('content');
-    }
-  }
-  if (!datetime) {
-    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-    for (const script of scripts) {
-      try {
-        const jsonData = JSON.parse(script.textContent);
-        if (jsonData.datePublished) {
-          datetime = jsonData.datePublished;
-          break;
-        }
-      } catch (e) { }
-    }
-  }
-  if (!content) {
-    const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
-    if (contentSpans.length > 0) {
-      content = Array.from(contentSpans)
-        .filter(span => !span.closest('h1'))
-        .filter(span => !span.closest('button'))
-        .filter(span => !span.closest('[role="button"]'))
-        .filter(span => !span.closest('[contenteditable="true"]'))
-        .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter(text => text && !isLikelyThreadsFallbackDescription(text))
-        .filter((text, index, array) => array.indexOf(text) === index)
-        .join('\n');
-    }
-  }
-  if (!content) {
-    const xi7Spans = sourceRoot.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
-    if (xi7Spans.length > 0) {
-      content = Array.from(xi7Spans)
-        .filter(span => !span.closest('h1'))
-        .filter(span => !span.closest('button'))
-        .filter(span => !span.closest('[role="button"]'))
-        .filter(span => !span.closest('[contenteditable="true"]'))
-        .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter(text => text && !isLikelyThreadsFallbackDescription(text))
-        .filter((text, index, array) => array.indexOf(text) === index)
-        .join('\n');
-    }
-  }
-  if (!content) {
-    const metaDescription = document.querySelector('meta[property="og:description"]');
-    if (metaDescription) {
-      const metaContent = metaDescription.getAttribute('content') || '';
-      if (metaContent && !metaContent.includes('加入 Threads 即可分享意見') && !isLikelyThreadsFallbackDescription(metaContent)) {
-        content = metaContent;
+
+  return new Promise((resolve) => {
+    const maxWaitMs = 4000;
+    const startTime = Date.now();
+
+    const check = () => {
+      const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
+      
+      if (requestedPostLink && !requestedPostElement) {
+        return false;
       }
-    }
-  }
-  if (requestedPostLink && [title, content].filter(Boolean).some(text => isLikelyThreadsFallbackDescription(text))) {
-    return createExpiredPostResult('fallback-summary');
-  }
-  if (!datetime && !content) {
-    return null;
-  }
-  return {
-    status: 'active',
-    datetime,
-    title,
-    content
-  };
+
+      const sourceRoot = requestedPostElement || document;
+      let datetime = null;
+      let title = '';
+      let content = '';
+
+      const timeElement = requestedPostElement?.querySelector('time[datetime]') || null;
+      if (timeElement) {
+        datetime = timeElement.getAttribute('datetime');
+        title = timeElement.getAttribute('title') || '';
+      }
+      if (!datetime) {
+        const metaTime = document.querySelector('meta[property="article:published_time"]');
+        if (metaTime) {
+          datetime = metaTime.getAttribute('content');
+        }
+      }
+      if (!datetime) {
+        const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (const script of scripts) {
+          try {
+            const jsonData = JSON.parse(script.textContent);
+            if (jsonData.datePublished) {
+              datetime = jsonData.datePublished;
+              break;
+            }
+          } catch (e) { }
+        }
+      }
+
+      if (!content) {
+        const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
+        if (contentSpans.length > 0) {
+          content = Array.from(contentSpans)
+            .filter(span => !span.closest('h1'))
+            .filter(span => !span.closest('button'))
+            .filter(span => !span.closest('[role="button"]'))
+            .filter(span => !span.closest('[contenteditable="true"]'))
+            .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
+            .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+            .filter((text, index, array) => array.indexOf(text) === index)
+            .join('\n');
+        }
+      }
+
+      if (!content) {
+        const xi7Spans = sourceRoot.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
+        if (xi7Spans.length > 0) {
+          content = Array.from(xi7Spans)
+            .filter(span => !span.closest('h1'))
+            .filter(span => !span.closest('button'))
+            .filter(span => !span.closest('[role="button"]'))
+            .filter(span => !span.closest('[contenteditable="true"]'))
+            .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
+            .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+            .filter((text, index, array) => array.indexOf(text) === index)
+            .join('\n');
+        }
+      }
+
+      if (!content) {
+        const metaDescription = document.querySelector('meta[property="og:description"]');
+        if (metaDescription) {
+          const metaContent = metaDescription.getAttribute('content') || '';
+          if (metaContent && !metaContent.includes('加入 Threads 即可分享意見') && !isLikelyThreadsFallbackDescription(metaContent)) {
+            content = metaContent;
+          }
+        }
+      }
+
+      if (requestedPostLink && [title, content].filter(Boolean).some(text => isLikelyThreadsFallbackDescription(text))) {
+        resolve(createExpiredPostResult('fallback-summary'));
+        return true;
+      }
+
+      if (datetime || content) {
+        resolve({
+          status: 'active',
+          datetime,
+          title,
+          content
+        });
+        return true;
+      }
+
+      return false;
+    };
+
+    if (check()) return;
+
+    const interval = setInterval(() => {
+      if (check() || (Date.now() - startTime > maxWaitMs)) {
+        clearInterval(interval);
+        if (Date.now() - startTime > maxWaitMs) {
+          const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
+          if (requestedPostLink && !requestedPostElement) {
+            resolve(createExpiredPostResult('post-not-found'));
+          } else {
+            resolve(null);
+          }
+        }
+      }
+    }, 150);
+  });
 }
 function buildThreadsEmbedCode(postLink) {
   if (!postLink) return '';
