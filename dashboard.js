@@ -746,7 +746,7 @@ async function updateAllTimestamps() {
               article.timestamp = postInfo.datetime;
               article.timestampTitle = postInfo.title || '';
             }
-            if (postInfo.content && !postInfo.content.includes('加入 Threads 即可分享意見')) {
+            if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
               article.content = postInfo.content;
             }
             article.timestampUpdatedAt = new Date().toISOString();
@@ -882,6 +882,10 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /^已儲存$/,
       /^追蹤中$/,
       /^附帶原始貼文的回覆內容$/,
+      /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
+      /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
+      /查看\s*@.+\s*參與的最新對話/i,
+      /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
     ].some(pattern => pattern.test(normalizedText));
   }
 

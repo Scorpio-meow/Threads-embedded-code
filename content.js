@@ -117,6 +117,10 @@ function isLikelyThreadsFallbackDescription(text) {
     /^已儲存$/,
     /^追蹤中$/,
     /^附帶原始貼文的回覆內容$/,
+    /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
+    /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
+    /查看\s*@.+\s*參與的最新對話/i,
+    /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
   ].some(pattern => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {
