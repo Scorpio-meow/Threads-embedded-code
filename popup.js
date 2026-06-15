@@ -117,6 +117,9 @@ async function updateAllTimestamps() {
             if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
               article.content = postInfo.content;
             }
+            if (Array.isArray(postInfo.tags)) {
+              article.tags = postInfo.tags;
+            }
             article.timestampUpdatedAt = new Date().toISOString();
             successCount++;
             console.log(`[Popup] 更新成功 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
@@ -326,11 +329,55 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       }
 
       if (datetime || content) {
+        let tags = [];
+        try {
+          const tagElements = sourceRoot.querySelectorAll('a[href*="serp_type=tags"], a[href*="tag_id="]');
+          tagElements.forEach(el => {
+            let tagVal = '';
+            const href = el.getAttribute('href');
+            if (href) {
+              try {
+                const url = new URL(href, 'https://www.threads.net');
+                const q = url.searchParams.get('q');
+                if (q) {
+                  tagVal = q.trim();
+                }
+              } catch (e) {}
+            }
+            if (!tagVal) {
+              tagVal = el.textContent.trim();
+            }
+            if (tagVal) {
+              const cleanTag = tagVal.replace(/^#/, '').trim();
+              if (cleanTag) {
+                tags.push(cleanTag);
+              }
+            }
+          });
+        } catch (err) {}
+
+        if (content) {
+          const hashtagRegex = /#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
+          let match;
+          while ((match = hashtagRegex.exec(content)) !== null) {
+            tags.push(match[1]);
+          }
+          const languages = ['JavaScript', 'Python', 'Java', 'C\\+\\+', 'C#', 'HTML', 'CSS', 'SQL', 'TypeScript', 'React', 'Vue', 'Angular'];
+          languages.forEach(lang => {
+            const pattern = lang.includes('\\') ? lang : `\\b${lang}\\b`;
+            if (new RegExp(pattern, 'i').test(content)) {
+              tags.push(lang.replace(/\\\+/g, '+'));
+            }
+          });
+        }
+        tags = [...new Set(tags.map(t => t.normalize('NFC')))];
+
         resolve({
           status: 'active',
           datetime,
           title,
-          content
+          content,
+          tags
         });
         return true;
       }

@@ -24,7 +24,7 @@
    - 作者與作者連結
    - 發文時間與時間標題
    - 程式碼區塊與推測語言
-   - Hashtag 與技術關鍵字標籤
+   - 智能標籤提取：結合 DOM 元素（原生標籤連結）、內文 Hashtag 語法，以及常用技術關鍵字（如 JavaScript、React、C++ 等），並透過 Unicode NFC 標準化進行去重
    - 原始 embed code
 
 ### 管理與瀏覽
@@ -45,7 +45,7 @@
 ### 維護工具
 
 - 重新生成 embed code
-- 透過背景分頁重新抓取 Threads 貼文內容與時間
+- 併發背景更新：以最多 3 個併發分頁的機制在背景重新抓取 Threads 貼文內容、精確發文時間與標籤，提升大量貼文更新時的處理效率
 - 自動標記 redirect、post-not-found、fallback-summary 等失效狀態
 - 提供本機備份與匯出以便長期保存
 
@@ -232,9 +232,9 @@ flowchart LR
 ## 開發與維護
 
 - `content.js` 依賴 Threads 目前的 DOM 結構；Threads 改版後，選擇器可能要同步調整
-- `dashboard.js` 會透過背景分頁重新抓取貼文，資料量大時建議分批操作
+- `dashboard.js` 會以最多 3 個併發任務在背景重新抓取貼文，資料量大時仍建議分批操作以避免被系統限制
 - 若按鈕或內容抓不到，先刷新 Threads 頁面，再重新載入擴充功能
-- 修改 `popup.html`、`popup.css`、`dashboard.html`、`dashboard.css` 或 `content.js` 後，記得在擴充功能頁面重新載入
+- 修改 `popup.html`、`popup.css`、`dashboard.html`、`dashboard.css`、`popup.js`、`dashboard.js` 或 `content.js` 後，記得在擴充功能頁面重新載入
 
 ### 常見問題
 
@@ -253,14 +253,14 @@ flowchart LR
 - 檔案格式可能不是支援的 `.json` / `.js`
 - `.js` 檔請使用 `posts = [...]` 或 `const posts = [...]`
 
-**Q：Threads 改版後抓不到內容？**
+**Q：Threads 改版後抓不到內容或標籤？**
 
-- 這個專案高度依賴 Threads 的 DOM 與 aria/label 結構
-- 需要更新 `content.js` 與 `dashboard.js` 的選擇器
+- 這個專案高度依賴 Threads 的 DOM、aria/label 與特定標籤連結的 URL 結構（如 `serp_type=tags` 等）
+- 需要更新 `content.js`、`dashboard.js` 與 `popup.js` 的選擇器
 
 ## 版本資訊
 
-- 目前版本：`v2.0.1`
+- 目前版本：`v2.0.3`
 - 擴充功能規範：Manifest V3
 
 ## 免責聲明

@@ -377,7 +377,7 @@ async function saveArticleFromEmbedDialog(dialog, context = {}) {
     content: finalContent,
     author: finalAuthor || '未知作者',
     authorUrl: finalAuthorUrl,
-    tags: extractTags(finalContent),
+    tags: extractTags(finalContent, postElement),
     codeBlocks: []
   };
   console.log('[Threads Saver] 準備儲存嵌入對話框內容:', articleData.postLink);
@@ -507,7 +507,7 @@ function extractArticleData(articleElement) {
   const timeElement = articleElement.querySelector('time');
   const timestamp = timeElement?.getAttribute('datetime') || new Date().toISOString();
   const timestampTitle = timeElement?.getAttribute('title') || '';
-  const tags = extractTags(textContent);
+  const tags = extractTags(textContent, articleElement);
   return {
     id: `code_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     content: textContent.trim(),
@@ -604,8 +604,41 @@ function detectLanguage(code) {
   }
   return 'unknown';
 }
-function extractTags(text) {
+function extractTags(text, container = null) {
   const tags = [];
+  
+  if (container) {
+    try {
+      const tagElements = container.querySelectorAll('a[href*="serp_type=tags"], a[href*="tag_id="]');
+      tagElements.forEach(el => {
+        let tagVal = '';
+        const href = el.getAttribute('href');
+        if (href) {
+          try {
+            const url = new URL(href, 'https://www.threads.net');
+            const q = url.searchParams.get('q');
+            if (q) {
+              tagVal = q.trim();
+            }
+          } catch (e) {
+            // 忽略解析 URL 錯誤
+          }
+        }
+        if (!tagVal) {
+          tagVal = el.textContent.trim();
+        }
+        if (tagVal) {
+          const cleanTag = tagVal.replace(/^#/, '').trim();
+          if (cleanTag) {
+            tags.push(cleanTag);
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[Threads Saver] 從 DOM 抓取 tags 失敗:', err);
+    }
+  }
+
   const hashtagRegex = /#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
   let match;
   while ((match = hashtagRegex.exec(text)) !== null) {
@@ -618,7 +651,7 @@ function extractTags(text) {
       tags.push(lang.replace(/\\\+/g, '+'));
     }
   });
-  return [...new Set(tags)];
+  return [...new Set(tags.map(t => t.normalize('NFC')))];
 }
 async function saveArticle(articleData, button) {
   try {
