@@ -84,25 +84,20 @@ async function updateAllTimestamps() {
     return;
   }
   showToast(`開始更新 ${articlesNeedingUpdate.length} 篇文章...`);
-  
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  
   const maxConcurrency = 3;
   const tasks = [...articlesNeedingUpdate];
-  
   const runWorker = async () => {
     while (tasks.length > 0) {
       const article = tasks.shift();
       if (!article) break;
-      
       let localIndex = 0;
       try {
         const postInfo = await fetchPostInfoViaTab(article.postLink);
         currentIndex++;
         localIndex = currentIndex;
-        
         if (postInfo) {
           if (postInfo.status === 'expired') {
             markArticleAsExpired(article, postInfo.reason);
@@ -132,17 +127,14 @@ async function updateAllTimestamps() {
         failCount++;
         console.error(`[Popup] 更新錯誤 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink, err);
       }
-      
       showToast(`進度: ${localIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
     }
   };
-  
   const workers = [];
   for (let i = 0; i < Math.min(maxConcurrency, articlesNeedingUpdate.length); i++) {
     workers.push(runWorker());
   }
   await Promise.all(workers);
-  
   await chrome.storage.local.set({ savedArticles: allArticles });
   filteredArticles = [...allArticles];
   sortArticles();
@@ -241,23 +233,18 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     }
     return null;
   }
-
   return new Promise((resolve) => {
     const maxWaitMs = 4000;
     const startTime = Date.now();
-
     const check = () => {
       const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
-      
       if (requestedPostLink && !requestedPostElement) {
         return false;
       }
-
       const sourceRoot = requestedPostElement || document;
       let datetime = null;
       let title = '';
       let content = '';
-
       const timeElement = requestedPostElement?.querySelector('time[datetime]') || null;
       if (timeElement) {
         datetime = timeElement.getAttribute('datetime');
@@ -282,7 +269,6 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           }
         }
       }
-
       if (!content) {
         const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
         if (contentSpans.length > 0) {
@@ -297,7 +283,6 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .join('\n');
         }
       }
-
       if (!content) {
         const xi7Spans = sourceRoot.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
         if (xi7Spans.length > 0) {
@@ -312,7 +297,6 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .join('\n');
         }
       }
-
       if (!content) {
         const metaDescription = document.querySelector('meta[property="og:description"]');
         if (metaDescription) {
@@ -322,12 +306,10 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           }
         }
       }
-
       if (requestedPostLink && isLikelyThreadsFallbackDescription([title, content].filter(Boolean).join(' '))) {
         resolve(createExpiredPostResult('fallback-summary'));
         return true;
       }
-
       if (datetime || content) {
         let tags = [];
         try {
@@ -342,7 +324,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
                 if (q) {
                   tagVal = q.trim();
                 }
-              } catch (e) {}
+              } catch (e) { }
             }
             if (!tagVal) {
               tagVal = el.textContent.trim();
@@ -354,8 +336,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
               }
             }
           });
-        } catch (err) {}
-
+        } catch (err) { }
         if (content) {
           const hashtagRegex = /#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
           let match;
@@ -371,7 +352,6 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           });
         }
         tags = [...new Set(tags.map(t => t.normalize('NFC')))];
-
         resolve({
           status: 'active',
           datetime,
@@ -381,12 +361,9 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         });
         return true;
       }
-
       return false;
     };
-
     if (check()) return;
-
     const interval = setInterval(() => {
       if (check() || (Date.now() - startTime > maxWaitMs)) {
         clearInterval(interval);
@@ -1107,11 +1084,9 @@ async function exportAllEmbedCodes() {
     const escapedCode = blockquoteOnly
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'");
-    return `  '${escapedCode}'`;
+    return `    '${escapedCode}'`;
   }).join(',\n');
-  const jsContent = `const posts = [
-${postsArray},
-  ];`;
+  const jsContent = `const posts = [\n${postsArray}\n];`;
   const blob = new Blob([jsContent], { type: 'text/javascript;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1149,10 +1124,7 @@ async function exportFullData() {
       expiredCheckedAt: article.expiredCheckedAt || ''
     };
   });
-  const jsContent = `// Threads 貼文完整資料 - 匯出時間: ${new Date().toLocaleString('zh-TW')}
-// 包含: embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status
-const posts = ${JSON.stringify(exportData, null, 2)};
-`;
+  const jsContent = `const posts = ${JSON.stringify(exportData, null, 4)};`;
   const blob = new Blob([jsContent], { type: 'text/javascript;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1220,10 +1192,20 @@ async function handleImportFile(event) {
 }
 function parseJsEmbedFile(content) {
   const articles = [];
-  const jsonArrayMatch = content.match(/(?:const\s+)?posts\s*=\s*(\[[\s\S]*?\]);?\s*$/);
+  const jsonArrayMatch = content.match(/(?:const\s+)?posts\s*=\s*(\[[\s\S]*\])/);
   if (jsonArrayMatch) {
     try {
-      const jsonData = JSON.parse(jsonArrayMatch[1]);
+      const jsonStr = jsonArrayMatch[1].trim();
+      let jsonData = null;
+      try {
+        jsonData = JSON.parse(jsonStr);
+      } catch (jsonErr) {
+        try {
+          jsonData = new Function(`return ${jsonStr};`)();
+        } catch (fnErr) {
+          console.error('[Popup] parseJsEmbedFile new Function 錯誤:', fnErr);
+        }
+      }
       if (Array.isArray(jsonData) && jsonData.length > 0) {
         if (jsonData[0].timestamp !== undefined || jsonData[0].postLink !== undefined) {
           console.log('[Popup] 識別為完整資料格式');
@@ -1255,7 +1237,7 @@ function parseJsEmbedFile(content) {
         }
       }
     } catch (e) {
-      console.log('[Popup] 不是 JSON 格式，嘗試解析簡易格式');
+      console.log('[Popup] 不是 JSON 格式，嘗試解析簡易格式', e);
     }
   }
   const arrayMatch = content.match(/(?:const\s+)?posts\s*=\s*\[([\s\S]*?)\];/);

@@ -606,7 +606,6 @@ function detectLanguage(code) {
 }
 function extractTags(text, container = null) {
   const tags = [];
-  
   if (container) {
     try {
       const tagElements = container.querySelectorAll('a[href*="serp_type=tags"], a[href*="tag_id="]');
@@ -638,7 +637,6 @@ function extractTags(text, container = null) {
       console.warn('[Threads Saver] 從 DOM 抓取 tags 失敗:', err);
     }
   }
-
   const hashtagRegex = /#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
   let match;
   while ((match = hashtagRegex.exec(text)) !== null) {
