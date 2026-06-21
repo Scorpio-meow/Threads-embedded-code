@@ -16,8 +16,8 @@ Threads 程式碼儲存器是一個基於 Manifest V3 標準設計的瀏覽器�
 - **背景併發更新機制**：採用併發上限為 3 的非同步任務隊列，在背景開啟隱藏分頁對 Threads 貼文進行重新讀取，自動修正發文時間、更新內文、同步標籤，並偵測貼文是否失效。
 - **失效狀態智慧標記**：當背景更新發現貼文被刪除、帳號設為私密、網址重新導向或頁面僅剩 fallback 摘要時，會自動標記貼文為失效（如 `redirected`、`post-not-found`、`fallback-summary`），便於維護資料庫健康度。
 - **彈性匯出與匯入**：
-  - 支援匯出為僅含嵌入 Blockquote 的簡易 JS 檔案，或包含所有結構化欄位的完整 JSON 資料。
-  - 支援匯入 JSON 或特定格式的 JS 檔案，並可自由選擇合併或覆寫現有本機資料庫。
+  - 提供三種 JavaScript 陣列格式（`const posts = [...]`）的匯出選項：簡易嵌入碼匯出、精選貼文資料匯出、以及完整版資料匯出。
+  - 支援匯入 JSON 或任何由擴充功能產生的 JS 陣列檔案，並可自由選擇合併（去重）或覆寫現有本機資料庫。
 
 ## 技術棧
 
@@ -229,22 +229,66 @@ interface CodeBlock {
 
 ## 匯入與匯出規範
 
-擴充功能支援本機資料庫的備份與還原，並定義了兩種匯出格式：
+擴充功能支援本機資料庫的備份與還原，並提供三種匯出選項，均以 `const posts = [...]` 的 JavaScript 陣列結構匯出，方便外部網頁與精選貼文專案直接引用：
 
-### 1. 簡易版 JS 匯出 (Embed Only)
-- **用途**：供外部網頁直接引用嵌入。
-- **格式**：只保留可以直接在 HTML 中渲染的 Blockquote 嵌入程式碼，並自動剔除重複的 `<script async src="https://www.threads.com/embed.js"></script>` 腳本標籤以最佳化載入效能。
-- **檔案命名**：`threads_embeds_only_[時間戳記].js`
+### 1. 簡易版 JS 嵌入碼匯出 (Embed Only)
+- **用途**：供外部網頁直接引用嵌入程式碼。
+- **格式**：只保留可以直接在 HTML 中渲染的 `blockquote` 嵌入程式碼，並自動剔除重複的 `<script async src="https://www.threads.com/embed.js"></script>` 腳本標籤，且對字串中的單引號與斜線進行轉義。
+- **檔案命名**：`threads-embed-codes-[YYYY-MM-DD].js`
+- **結構範例**：
+  ```javascript
+  const posts = [
+      '<blockquote class="text-post-media" ...> ... </blockquote>',
+      '<blockquote class="text-post-media" ...> ... </blockquote>'
+  ];
+  ```
 
-### 2. 完整版 JSON/JS 匯出 (Full Data)
-- **用途**：用於本機備份、還原與跨裝置同步。
-- **格式**：包含 `SavedArticle` Schema 中定義的所有欄位（包含發文時間、程式碼區塊、標籤、失效狀態等）。
-- **檔案命名**：`threads_saved_articles_[時間戳記].json` 或 `.js`
+### 2. 精選貼文資料 JS 匯出 (Featured Data)
+- **用途**：專為精選貼文展示網頁（例如 Threads-Featured-Posts）設計，過濾了不必要的元數據。
+- **格式**：匯出特定欄位組成的物件陣列，其中的 `embedCode` 已剔除 `script` 標籤，且 `author` 已移除帳號首字的 `@` 符號以方便識別。
+- **檔案命名**：`threads-featured-data-[YYYY-MM-DD].js`
+- **結構範例**：
+  ```javascript
+  const posts = [
+      {
+          "embedCode": "<blockquote class=\"text-post-media\" ...> ... </blockquote>",
+          "postLink": "https://www.threads.net/@username/post/postId",
+          "author": "username",
+          "content": "貼文純文字內容",
+          "tags": ["Tag1", "Tag2"]
+      }
+  ];
+  ```
 
-### 3. 匯入合併邏輯
-匯入資料時，系統會比對匯入檔案中的貼文連結與目前本機資料庫：
-- **合併模式 (Merge)**：比對 `postLink`，若該貼文已存在則跳過，僅匯入資料庫中沒有的新貼文。
-- **覆寫模式 (Overwrite)**：完全清除目前本機的 `savedArticles` 內容，並以匯入檔案中的資料完全取代。
+### 3. 完整版資料 JS 匯出 (Full Data)
+- **用途**：用於本機資料庫完整備份、還原或跨裝置同步。
+- **格式**：匯出包含 `SavedArticle` Schema 中定義的所有欄位（包括發布時間、本機儲存時間、失效狀態及原因等），其中的 `embedCode` 已剔除 `script` 標籤，且 `author` 保留 `@` 符號。
+- **檔案命名**：`threads-full-data-[YYYY-MM-DD].js`
+- **結構範例**：
+  ```javascript
+  const posts = [
+      {
+          "embedCode": "<blockquote class=\"text-post-media\" ...> ... </blockquote>",
+          "postLink": "https://www.threads.net/@username/post/postId",
+          "author": "@username",
+          "content": "貼文純文字內容",
+          "timestamp": "2026-06-21T09:00:00.000Z",
+          "timestampTitle": "2026年6月21日 上午9:00",
+          "savedAt": "2026-06-21T09:12:00.000Z",
+          "tags": ["Tag1", "Tag2"],
+          "status": "active",
+          "expiredAt": "",
+          "expiredReason": "",
+          "expiredCheckedAt": ""
+      }
+  ];
+  ```
+
+### 4. 智慧匯入與合併邏輯
+匯入資料時，系統支援選取 `.json` 檔案或上述三種 JavaScript 檔案（自動偵測 `const posts` 變數並加以解析）：
+- **合併模式 (Merge)**：比對 `postLink`，若該貼文已存在於本機資料庫則自動跳過，僅匯入新的貼文。
+- **覆寫模式 (Overwrite)**：清空目前本機的 `savedArticles` 內容，並以匯入檔案中的資料完全取代。
+- **自動修復**：若匯入的資料中 `embedCode` 缺少 `<script ...>` 標籤，系統在匯入本機資料庫時會自動在末尾補上，確保在擴充功能介面中仍能正常預覽與生成。
 
 ## 權限與隱私聲明
 

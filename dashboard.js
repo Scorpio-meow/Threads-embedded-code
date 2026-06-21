@@ -104,6 +104,7 @@ function setupEventListeners() {
     toggleSelectAll(e.target.checked);
   });
   document.getElementById('exportBtn').addEventListener('click', exportAllEmbedCodes);
+  document.getElementById('exportFeaturedBtn').addEventListener('click', exportFeaturedData);
   document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
   document.getElementById('importBtn').addEventListener('click', () => {
     document.getElementById('importFileInput').click();
@@ -1118,6 +1119,37 @@ async function exportAllEmbedCodes() {
   const jsContent = `const posts = [\n${postsArray}\n];`;
   downloadFile(jsContent, `threads-embed-codes-${new Date().toISOString().split('T')[0]}.js`, 'text/javascript');
   showToast(`已匯出 ${articlesWithEmbed.length} 個內嵌程式碼`);
+}
+async function exportFeaturedData() {
+  if (filteredArticles.length === 0) {
+    showToast('沒有資料可以匯出');
+    return;
+  }
+  const exportData = filteredArticles.map((article) => {
+    let blockquoteOnly = article.embedCode || '';
+    let previous;
+    do {
+      previous = blockquoteOnly;
+      blockquoteOnly = blockquoteOnly.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '');
+    } while (blockquoteOnly !== previous);
+    blockquoteOnly = blockquoteOnly.trim();
+    
+    let author = article.author || '';
+    if (author.startsWith('@')) {
+      author = author.substring(1);
+    }
+    
+    return {
+      embedCode: blockquoteOnly,
+      postLink: article.postLink || '',
+      author: author,
+      content: article.content || '',
+      tags: article.tags || []
+    };
+  });
+  const jsContent = `const posts = ${JSON.stringify(exportData, null, 4)};`;
+  downloadFile(jsContent, `threads-featured-data-${new Date().toISOString().split('T')[0]}.js`, 'text/javascript');
+  showToast(`已匯出 ${exportData.length} 筆精選格式資料`);
 }
 async function exportFullData() {
   if (filteredArticles.length === 0) {

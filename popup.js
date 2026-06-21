@@ -501,6 +501,10 @@ function setupEventListeners() {
     });
   }
   document.getElementById('exportBtn').addEventListener('click', exportAllEmbedCodes);
+  const exportFeaturedBtn = document.getElementById('exportFeaturedBtn');
+  if (exportFeaturedBtn) {
+    exportFeaturedBtn.addEventListener('click', exportFeaturedData);
+  }
   const exportFullBtn = document.getElementById('exportFullBtn');
   if (exportFullBtn) {
     exportFullBtn.addEventListener('click', exportFullData);
@@ -1095,6 +1099,43 @@ async function exportAllEmbedCodes() {
   link.click();
   URL.revokeObjectURL(url);
   showToast(`已匯出 ${articlesWithEmbed.length} 個內嵌程式碼`);
+}
+async function exportFeaturedData() {
+  if (filteredArticles.length === 0) {
+    showToast('沒有資料可以匯出');
+    return;
+  }
+  const exportData = filteredArticles.map((article) => {
+    let blockquoteOnly = article.embedCode || '';
+    let previous;
+    do {
+      previous = blockquoteOnly;
+      blockquoteOnly = blockquoteOnly.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '');
+    } while (blockquoteOnly !== previous);
+    blockquoteOnly = blockquoteOnly.trim();
+    
+    let author = article.author || '';
+    if (author.startsWith('@')) {
+      author = author.substring(1);
+    }
+    
+    return {
+      embedCode: blockquoteOnly,
+      postLink: article.postLink || '',
+      author: author,
+      content: article.content || '',
+      tags: article.tags || []
+    };
+  });
+  const jsContent = `const posts = ${JSON.stringify(exportData, null, 4)};`;
+  const blob = new Blob([jsContent], { type: 'text/javascript;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `threads-featured-data-${new Date().toISOString().split('T')[0]}.js`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast(`已匯出 ${exportData.length} 筆精選格式資料`);
 }
 async function exportFullData() {
   if (filteredArticles.length === 0) {
