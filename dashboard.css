@@ -333,13 +333,19 @@ body {
     letter-spacing: -0.03em;
 }
 
-.tags-cloud-wrapper {
+.tags-cloud-wrapper,
+.authors-cloud-wrapper {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.tags-cloud-wrapper .small-title {
+.authors-cloud-wrapper {
+    margin-top: 16px;
+}
+
+.tags-cloud-wrapper .small-title,
+.authors-cloud-wrapper .small-title {
     font-size: 11px;
     font-weight: 700;
     color: var(--text-secondary);
@@ -347,7 +353,8 @@ body {
     letter-spacing: 0.08em;
 }
 
-.tags-cloud {
+.tags-cloud,
+.authors-cloud {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;

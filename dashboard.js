@@ -20,6 +20,7 @@ async function loadArticles() {
   renderArticles();
   updateFilterValueOptions();
   renderTagsCloud();
+  renderAuthorsCloud();
 }
 function calculateStatistics() {
   const total = allArticles.length;
@@ -69,6 +70,46 @@ function renderTagsCloud() {
         currentFilter = 'tag';
         currentFilterValue = tag;
         document.getElementById('filterSelect').value = 'tag';
+      }
+      updateFilterValueOptions();
+      const filterValSelect = document.getElementById('filterValueSelect');
+      if (filterValSelect) filterValSelect.value = currentFilterValue;
+      applyFilters();
+    });
+    cloudContainer.appendChild(badge);
+  });
+}
+function renderAuthorsCloud() {
+  const cloudContainer = document.getElementById('authorsCloud');
+  if (!cloudContainer) return;
+  cloudContainer.innerHTML = '';
+  const authorCounts = {};
+  allArticles.map(a => a.author).filter(Boolean).forEach(author => {
+    authorCounts[author] = (authorCounts[author] || 0) + 1;
+  });
+  const sortedAuthors = Object.entries(authorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+  if (sortedAuthors.length === 0) {
+    cloudContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-secondary);">暫無作者</span>';
+    return;
+  }
+  sortedAuthors.forEach(([author, count]) => {
+    const badge = document.createElement('span');
+    badge.className = 'tag-badge';
+    if (currentFilter === 'author' && currentFilterValue === author) {
+      badge.classList.add('active');
+    }
+    badge.textContent = `${author} (${count})`;
+    badge.addEventListener('click', () => {
+      if (currentFilter === 'author' && currentFilterValue === author) {
+        currentFilter = 'all';
+        currentFilterValue = '';
+        document.getElementById('filterSelect').value = 'all';
+      } else {
+        currentFilter = 'author';
+        currentFilterValue = author;
+        document.getElementById('filterSelect').value = 'author';
       }
       updateFilterValueOptions();
       const filterValSelect = document.getElementById('filterValueSelect');
@@ -223,6 +264,7 @@ function applyFilters() {
   sortArticles();
   renderArticles();
   renderTagsCloud();
+  renderAuthorsCloud();
 }
 function matchesFilter(article) {
   switch (currentFilter) {
@@ -1133,12 +1175,10 @@ async function exportFeaturedData() {
       blockquoteOnly = blockquoteOnly.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '');
     } while (blockquoteOnly !== previous);
     blockquoteOnly = blockquoteOnly.trim();
-    
     let author = article.author || '';
     if (author.startsWith('@')) {
       author = author.substring(1);
     }
-    
     return {
       embedCode: blockquoteOnly,
       postLink: article.postLink || '',

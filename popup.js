@@ -1113,12 +1113,10 @@ async function exportFeaturedData() {
       blockquoteOnly = blockquoteOnly.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '');
     } while (blockquoteOnly !== previous);
     blockquoteOnly = blockquoteOnly.trim();
-    
     let author = article.author || '';
     if (author.startsWith('@')) {
       author = author.substring(1);
     }
-    
     return {
       embedCode: blockquoteOnly,
       postLink: article.postLink || '',
