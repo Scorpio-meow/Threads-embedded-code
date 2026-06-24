@@ -151,11 +151,9 @@ function setupEventListeners() {
     document.getElementById('importFileInput').click();
   });
   document.getElementById('importFileInput').addEventListener('change', handleImportFile);
-  document.getElementById('refreshAllBtn').addEventListener('click', refreshAllEmbedCodes);
   document.getElementById('updateTimestampsBtn').addEventListener('click', updateAllTimestamps);
   document.getElementById('clearBtn').addEventListener('click', clearAllArticles);
   document.getElementById('batchCopyEmbedBtn').addEventListener('click', batchCopyEmbedCodes);
-  document.getElementById('batchRegenBtn').addEventListener('click', batchRegenEmbedCodes);
   document.getElementById('batchDeleteBtn').addEventListener('click', batchDeleteArticles);
 }
 function setupModalListeners() {
@@ -514,18 +512,6 @@ function renderArticles() {
         copyTextToClipboard(article.embedCode, '內嵌代碼已複製');
       });
       actions.appendChild(copyEmbedBtn);
-    }
-    if (article.postLink) {
-      const regenBtn = document.createElement('button');
-      regenBtn.className = 'card-action-btn';
-      regenBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-        重新生成
-      `;
-      regenBtn.addEventListener('click', () => {
-        refreshEmbedCode(article.id);
-      });
-      actions.appendChild(regenBtn);
     }
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'card-action-btn danger';

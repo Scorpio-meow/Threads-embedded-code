@@ -585,10 +585,6 @@ function setupEventListeners() {
   if (importFileInput) {
     importFileInput.addEventListener('change', handleImportFile);
   }
-  const refreshAllBtn = document.getElementById('refreshAllBtn');
-  if (refreshAllBtn) {
-    refreshAllBtn.addEventListener('click', refreshAllEmbedCodes);
-  }
   const updateTimestampsBtn = document.getElementById('updateTimestampsBtn');
   if (updateTimestampsBtn) {
     updateTimestampsBtn.addEventListener('click', updateAllTimestamps);
@@ -882,13 +878,6 @@ function renderArticles() {
       copyEmbedBtn.setAttribute('data-article-id', article.id);
       copyEmbedBtn.textContent = '複製內嵌程式碼';
       actions.appendChild(copyEmbedBtn);
-    }
-    if (article.postLink) {
-      const refreshBtn = document.createElement('button');
-      refreshBtn.className = 'action-btn refresh-embed-btn';
-      refreshBtn.setAttribute('data-article-id', article.id);
-      refreshBtn.textContent = '重新生成';
-      actions.appendChild(refreshBtn);
     }
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'action-btn delete-btn delete-article-btn';
