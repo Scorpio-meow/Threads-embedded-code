@@ -22,9 +22,9 @@
 
 ## 目錄
 
+- [快速開始](#快速開始)
 - [主要功能特性](#主要功能特性)
 - [技術棧](#技術棧)
-- [快速開始](#快速開始)
 - [專案目錄結構](#專案目錄結構)
 - [系統架構](#系統架構)
 - [資料儲存 Schema](#資料儲存-schema)
@@ -33,6 +33,8 @@
 - [匯入與匯出規範](#匯入與匯出規範)
 - [權限與隱私聲明](#權限與隱私聲明)
 - [疑難排解](#疑難排解)
+- [貢獻指南](#貢獻指南)
+- [Changelog](#changelog)
 - [免責聲明](#免責聲明)
 
 ---
@@ -166,7 +168,14 @@ cd threads-embedded-code
 4. 選擇本專案根目錄（含 `manifest.json` 的資料夾）
 5. 建議在工具列中釘選「Threads 程式碼儲存器」以便快速操作
 
-### 3. 開發偵錯
+### 3. 開始使用
+
+1. 前往任意 Threads 貼文頁面
+2. 點擊貼文右上角選單，選擇「取得內嵌程式碼」
+3. 擴充功能自動偵測對話框並儲存 — 出現綠色提示即代表成功
+4. 點擊工具列圖示開啟 Popup，或透過擴充功能選項頁開啟完整儀表板
+
+### 4. 開發偵錯
 
 - 修改任何檔案後，回到擴充功能管理頁面點擊 **重新載入**
 - 重新整理已開啟的 Threads 頁面，確保最新腳本注入執行
@@ -574,6 +583,89 @@ const posts = [
 - 偵測到 `QUOTA` 錯誤時會自動提示清理
 
 </details>
+
+---
+
+## 貢獻指南
+
+歡迎提交 Issue 或 Pull Request 來協助改善本專案。
+
+### 提交 Issue 前
+
+- 請確認是否已在[現有 Issue](https://github.com/Scorpio-meow/threads-embedded-code/issues) 中有相同回報
+- 附上瀏覽器版本、擴充功能版本及重現步驟
+
+### 提交 Pull Request
+
+1. Fork 本倉庫並建立新分支（`feature/your-feature` 或 `fix/issue-description`）
+2. 修改 `content.js`、`popup.js` 或 `dashboard.js` 等核心檔案
+3. 確保修改後載入未封裝擴充功能可正常運作
+4. 提交 PR 並說明變更動機與影響範圍
+
+### 開發注意事項
+
+- 本專案為**零依賴**設計，請勿引入任何 npm 套件或外部 CDN 資源
+- 所有 UI 互動必須相容嚴格 CSP，**不得使用行內樣式或行內事件處理器**
+- 新增欄位需同步更新本 README 的 [資料儲存 Schema](#資料儲存-schema) 區段
+
+---
+
+## Changelog
+
+遵循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/) 格式。
+
+### [Unreleased]
+
+### [2.0.5] — 最新版本
+
+#### 新增
+- `safeStorageGet` / `safeStorageSet` 封裝層，防止 Context Invalidated 後未捕獲例外
+- `processOpenEmbedDialogs` 直接偵測已開啟對話框，確保不漏儲
+
+#### 改善
+- 後設資料過濾規則擴充至 20+ 種 UI 雜訊模式，新增英文介面支援
+- 背景併發更新佇列穩定性提升
+
+#### 修正
+- 修正 `isSameThreadsPostLink` 在特定 URL 格式下的誤判問題
+- 修正 indeterminate 全選狀態在批次刪除後未正確重置的問題
+
+### [2.0.0]
+
+#### 新增
+- 全頁儀表板（`dashboard.html` / `dashboard.js`）上線
+- 三種匯出格式：Embed Only、Featured Data、Full Data
+- 批次更新（最多 3 併發）與失效狀態智慧標記
+- 作者與標籤統計雲（Top 15）
+- 自訂 Modal 取代原生 `confirm()` / `alert()`
+
+#### 改善
+- 嵌入碼選擇由分數權重演算法決定，大幅降低誤選率
+- 全面移除行內樣式，符合嚴格 CSP 規範
+
+---
+
+## AI 友善文件
+
+> 本節供 AI 代理、RAG 索引工具與自動化工作流參考。
+
+```markdown
+# Threads 程式碼儲存器
+> 從 Threads 貼文自動擷取並本機儲存可嵌入的程式碼與貼文資料的 Chromium 擴充功能。
+
+## 核心檔案
+- [content.js]: Content Script，負責 DOM 監聽、嵌入對話框偵測與初次資料擷取
+- [popup.js]: Popup 介面邏輯，提供搜尋、排序、匯出、匯入與背景更新功能
+- [dashboard.js]: 全頁儀表板邏輯，含統計雲、批次維護與失效管理
+- [manifest.json]: 擴充功能設定，定義權限與內容腳本注入規則
+
+## 關鍵概念
+- savedArticles: chrome.storage.local 中的主要資料鍵，儲存 SavedArticle 物件陣列
+- postLink: 貼文去重與更新的唯一主鍵（Threads 貼文 URL）
+- embedCode: Threads 官方 <blockquote> HTML 嵌入碼
+- status: active | expired，標記貼文是否仍可正常存取
+- 背景更新: 透過 chrome.tabs + chrome.scripting 開啟隱藏分頁重新擷取
+```
 
 ---
 
