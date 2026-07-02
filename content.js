@@ -87,6 +87,20 @@ function extractContentFromDOM(container) {
     .filter(span => !span.closest('button'))
     .filter(span => !span.closest('[role="button"]'))
     .filter(span => !span.closest('h1') && !span.closest('[aria-label="直欄標題"]'))
+    .filter(span => {
+      if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) {
+        return false;
+      }
+      let parent = span.parentElement;
+      while (parent && parent !== searchRoot) {
+        const text = parent.textContent;
+        if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+          return false;
+        }
+        parent = parent.parentElement;
+      }
+      return true;
+    })
     .filter(span => !isLikelyThreadsFallbackDescription(span.textContent.trim()))
     .map(span => span.textContent.trim())
     .filter(Boolean);
@@ -122,6 +136,7 @@ function isLikelyThreadsFallbackDescription(text) {
     /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
     /查看\s*@.+\s*參與的最新對話/i,
     /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
+    /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
   ].some(pattern => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {

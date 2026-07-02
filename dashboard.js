@@ -910,6 +910,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
       /查看\s*@.+\s*參與的最新對話/i,
       /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
+      /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
     ].some(pattern => pattern.test(normalizedText));
   }
   return new Promise((resolve) => {
@@ -955,6 +956,18 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .filter(span => !span.closest('button'))
             .filter(span => !span.closest('[role="button"]'))
             .filter(span => !span.closest('[contenteditable="true"]'))
+            .filter(span => {
+              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+              let parent = span.parentElement;
+              while (parent && parent !== sourceRoot) {
+                const text = parent.textContent;
+                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+                  return false;
+                }
+                parent = parent.parentElement;
+              }
+              return true;
+            })
             .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
             .filter(text => text && !isLikelyThreadsFallbackDescription(text))
             .filter((text, index, array) => array.indexOf(text) === index)
@@ -969,6 +982,18 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .filter(span => !span.closest('button'))
             .filter(span => !span.closest('[role="button"]'))
             .filter(span => !span.closest('[contenteditable="true"]'))
+            .filter(span => {
+              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+              let parent = span.parentElement;
+              while (parent && parent !== sourceRoot) {
+                const text = parent.textContent;
+                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+                  return false;
+                }
+                parent = parent.parentElement;
+              }
+              return true;
+            })
             .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
             .filter(text => text && !isLikelyThreadsFallbackDescription(text))
             .filter((text, index, array) => array.indexOf(text) === index)

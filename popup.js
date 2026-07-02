@@ -233,6 +233,39 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     }
     return null;
   }
+  function isLikelyThreadsFallbackDescription(text) {
+    const normalizedText = String(text).replace(/\s+/g, ' ').trim();
+    return [
+      /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
+      /^回覆[\s\S]*[…\.]{1,3}$/i,
+      /^尚無回覆$/i,
+      /^查看動態$/i,
+      /^更多$/i,
+      /^返回$/i,
+      /^直欄標題$/i,
+      /^附加影音內容$/i,
+      /^新增 GIF$/i,
+      /^展開撰寫工具$/i,
+      /^分享$/i,
+      /^轉發$/i,
+      /^讚$/i,
+      /^為你推薦$/,
+      /^新串文$/,
+      /^搜尋$/,
+      /^動態$/,
+      /^個人檔案$/,
+      /^聯邦宇宙$/,
+      /^洞察報告$/,
+      /^已儲存$/,
+      /^追蹤中$/,
+      /^附帶原始貼文的回覆內容$/,
+      /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
+      /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
+      /查看\s*@.+\s*參與的最新對話/i,
+      /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
+      /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+    ].some(pattern => pattern.test(normalizedText));
+  }
   return new Promise((resolve) => {
     const maxWaitMs = 4000;
     const startTime = Date.now();
@@ -277,6 +310,18 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .filter(span => !span.closest('button'))
             .filter(span => !span.closest('[role="button"]'))
             .filter(span => !span.closest('[contenteditable="true"]'))
+            .filter(span => {
+              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+              let parent = span.parentElement;
+              while (parent && parent !== sourceRoot) {
+                const text = parent.textContent;
+                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+                  return false;
+                }
+                parent = parent.parentElement;
+              }
+              return true;
+            })
             .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
             .filter(text => text && !isLikelyThreadsFallbackDescription(text))
             .filter((text, index, array) => array.indexOf(text) === index)
@@ -291,6 +336,18 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
             .filter(span => !span.closest('button'))
             .filter(span => !span.closest('[role="button"]'))
             .filter(span => !span.closest('[contenteditable="true"]'))
+            .filter(span => {
+              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+              let parent = span.parentElement;
+              while (parent && parent !== sourceRoot) {
+                const text = parent.textContent;
+                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+                  return false;
+                }
+                parent = parent.parentElement;
+              }
+              return true;
+            })
             .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
             .filter(text => text && !isLikelyThreadsFallbackDescription(text))
             .filter((text, index, array) => array.indexOf(text) === index)
@@ -412,38 +469,6 @@ function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
   const actualPostId = extractThreadsPostIdFromLink(actualLink);
   return !!expectedPostId && !!actualPostId && expectedPostId === actualPostId;
-}
-function isLikelyThreadsFallbackDescription(text) {
-  const normalizedText = String(text).replace(/\s+/g, ' ').trim();
-  return [
-    /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
-    /^回覆[\s\S]*[…\.]{1,3}$/i,
-    /^尚無回覆$/i,
-    /^查看動態$/i,
-    /^更多$/i,
-    /^返回$/i,
-    /^直欄標題$/i,
-    /^附加影音內容$/i,
-    /^新增 GIF$/i,
-    /^展開撰寫工具$/i,
-    /^分享$/i,
-    /^轉發$/i,
-    /^讚$/i,
-    /^為你推薦$/,
-    /^新串文$/,
-    /^搜尋$/,
-    /^動態$/,
-    /^個人檔案$/,
-    /^聯邦宇宙$/,
-    /^洞察報告$/,
-    /^已儲存$/,
-    /^追蹤中$/,
-    /^附帶原始貼文的回覆內容$/,
-    /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
-    /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
-    /查看\s*@.+\s*參與的最新對話/i,
-    /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
-  ].some(pattern => pattern.test(normalizedText));
 }
 function isExpiredArticle(article) {
   return article?.status === 'expired' || !!article?.expiredAt || !!article?.expiredReason;
