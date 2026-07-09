@@ -7,7 +7,7 @@
 [![Version](https://img.shields.io/badge/version-2.0.5-blue?style=for-the-badge)](./manifest.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](./LICENSE)
-[![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](#技術規格)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](#技術規格與技術棧)
 [![Platform](https://img.shields.io/badge/platform-Chromium-orange?style=for-the-badge&logo=googlechrome&logoColor=white)](#開發與前置條件)
 
 ---
@@ -43,9 +43,8 @@
 
 ### 開發與前置條件
 
-- 支持 Manifest V3 的 Chromium 核心瀏覽器（如 Google Chrome, Microsoft Edge, Brave, Opera 等）。
+- 支援 Manifest V3 的 Chromium 核心瀏覽器（如 Google Chrome, Microsoft Edge, Brave, Opera 等）。
 - 執行與開發不需安裝任何額外的編譯套件。
-- 若需要安裝輔助指令或管理本地測試環境，推薦使用 **Bun** 作為套件管理器。
 
 ### 載入擴充功能步驟
 
@@ -75,13 +74,13 @@
 
 ### 1. 智慧攔截與自動儲存
 - **DOM 變更監聽**：使用 `MutationObserver` 持續監控網頁結構，搭配 5 秒一次的週期性掃描，精確捕獲「取得內嵌程式碼」對話框。
-- **主動式偵測**：當使用者在非擴充功能觸發的情況下開啟嵌入對話框時，`processOpenEmbedDialogs` 會主動識別並將該貼文儲存至資料庫。
-- **安全儲存封裝**：內建 `safeStorageGet` 與 `safeStorageSet`，能自動偵測擴充功能上下文是否失效 (`isExtensionAlive`)，避免拋出未捕獲例外（Context Invalidated 錯誤）。
+- **主動式偵測**：當使用者在非擴充功能觸發的情況下開啟嵌入對話框時，[processOpenEmbedDialogs](./content.js#L402-L442) 會主動識別並將該貼文儲存至資料庫。
+- **安全儲存封裝**：內建 [safeStorageGet](./content.js#L20-L31) 與 [safeStorageSet](./content.js#L32-L43)，能自動偵測擴充功能上下文是否失效（[isExtensionAlive](./content.js#L13-L19)），避免拋出未捕獲例外（Context Invalidated 錯誤）。
 
 ### 2. 智慧過濾與中繼資料擷取
 - **UI 雜訊過濾**：自動識別並清除作者簡介、追蹤人數、串文數量以及平台引導文案（例如「查看 @... 參與的最新對話」、「尚無回覆」等）。支援多達 20 種以上的繁中與英文模式。
 - **回覆邊界隔離**：在首頁動態牆或個人檔案頁面擷取貼文時，若偵測到「回覆...」等邊界元素，會自動切斷並排除回覆區域，僅保留原始貼文內容。
-- **純圖片貼文偵測**：透過 `isLikelyImageOnlyDescription` 智慧識別僅含圖片說明（如 `Photo by ... on ...`）的貼文，避免誤擷取無意義描述。
+- **純圖片貼文偵測**：透過 [isLikelyImageOnlyDescription](./content.js#L157-L164) 智慧識別僅含圖片說明（如 `Photo by ... on ...`）的貼文，避免誤擷取無意義描述。
 
 ### 3. 多維度欄位提取
 擴充功能會將每篇貼文拆解為結構化的欄位，以利後續的檢索與程式碼重複利用：
@@ -98,9 +97,9 @@
 
 ### 4. 背景更新與失效狀態監控
 - **背景任務佇列**：使用 `chrome.tabs` 與 `chrome.scripting` 以最多 3 個併發任務開啟隱藏分頁，自動重新讀取貼文以同步最新內容。
-- **智慧失效標記**：當背景更新發現以下狀況時，會自動將貼文標記為失效 (`expired`)：
+- **智慧失效標記**：當背景更新發現以下狀況時，會自動將貼文標記為失效（`expired`）：
   - `redirected`：URL 中的貼文 ID 發生改變（表示原貼文已被轉導或刪除）。
-  - `post-not-found`：在頁面載入 4 秒後仍找不到貼文主容器 `[data-pressable-container]`。
+  - `post-not-found`：在頁面載入 8 秒後仍找不到貼文主容器 `[data-pressable-container]`。
   - `fallback-summary`：頁面僅剩下預設的引導摘要文字。
 - **失效自動恢復**：下次更新時若偵測到貼文恢復可存取狀態，將會自動清除失效標記。
 
@@ -116,32 +115,31 @@
 - **核心架構**：原生 HTML5, CSS3, Vanilla JavaScript (ES6+)。
 - **核心規範**：Chrome Extension Manifest V3。
 - **資料儲存**：`chrome.storage.local`（儲存上限預設為 10MB）。
-- **權限控制**：完全無第三方依賴，不使用任何外部 CDN 或 NPM 包，符合安全性嚴格的內容安全政策 (Content Security Policy, CSP)。
+- **權限控制**：完全無第三方依賴，不使用任何外部 CDN 或 npm 套件，符合安全性嚴格的內容安全政策 (Content Security Policy, CSP)。
 
 ---
 
 ## 專案目錄結構
 
-```text
-threads-embedded-code/
-├── manifest.json      # 擴充功能設定檔 (定義權限、指令注入規則與入口)
-├── content.js         # Content Script (負責 DOM 監聽、對話框攔截與初次資料提取)
-├── styles.css         # 注入到 Threads 網頁的樣式檔 (用於提示通知元件)
-├── popup.html         # 瀏覽器工具列彈出視窗 UI
-├── popup.css          # 彈出視窗樣式表
-├── popup.js           # 彈出視窗控制邏輯 (搜尋、篩選、基本備份、背景更新)
-├── dashboard.html     # 完整管理儀表板 UI (側邊欄、統計雲、貼文列表、確認 Modal)
-├── dashboard.css      # 儀表板樣式表
-├── dashboard.js       # 儀表板控制邏輯 (統計分析、標籤雲、自訂對話框、批次管理)
-├── favicon.png        # 擴充功能圖示
-└── README.md          # 專案說明文件
-```
+專案的所有主要檔案及其對應的實作細節如下所示。您可以點擊檔案名稱直接開啟檢視：
+
+- [manifest.json](./manifest.json)：擴充功能設定檔，定義權限、腳本注入規則與進入點。
+- [content.js](./content.js)：Content Script，負責 DOM 監聽、對話框攔截與初次資料提取。
+- [styles.css](./styles.css)：注入到 Threads 網頁的樣式表，用於提示通知元件的渲染。
+- [popup.html](./popup.html)：瀏覽器工具列彈出視窗的 HTML 結構。
+- [popup.css](./popup.css)：彈出視窗的專用樣式表。
+- [popup.js](./popup.js)：彈出視窗控制邏輯（搜尋、排序、篩選、基本備份、背景更新）。
+- [dashboard.html](./dashboard.html)：完整管理儀表板的 HTML 結構（包含統計數據、標籤雲、貼文列表、確認對話框等）。
+- [dashboard.css](./dashboard.css)：儀表板的專用樣式表。
+- [dashboard.js](./dashboard.js)：儀表板控制邏輯（統計分析、標籤雲與作者雲、自訂對話框、批次管理）。
+- [favicon.png](./favicon.png)：擴充功能的圖示資源。
+- [README.md](./README.md)（本檔案）。
 
 ---
 
 ## 系統架構與流程圖
 
-下列 Mermaid 流程圖展示了從前端 Threads 頁面點擊按鈕，到背景更新，再到資料呈現於 UI 的完整運作路徑：
+下圖展示了從前端 Threads 頁面點擊按鈕，到背景更新，再到資料呈現於 UI 的完整運作路徑：
 
 ```mermaid
 flowchart TD
@@ -178,7 +176,8 @@ flowchart TD
 ## 核心技術邏輯與演算法
 
 ### 1. 嵌入碼權重排名演算法 (Dialog Weight Scorer)
-當 Threads 彈出嵌入對話框時，會包含多個唯讀的 `input` 或 `textarea` 元素。為了準確拿到包含 blockquote 的完整嵌入碼，擴充功能對所有 `readonly` 的輸入框內容進行權重計分：
+
+當 Threads 彈出嵌入對話框時，為了準確拿到包含 `blockquote` 的完整嵌入碼，[extractEmbedCodeFromDialog](./content.js#L327-L356) 對所有 `readonly` 的輸入框內容進行權重計分：
 
 ```javascript
 let score = value.length;
@@ -186,22 +185,20 @@ if (/data-text-post-permalink=/i.test(value)) score += 1000;
 if (/<blockquote/i.test(value)) score += 500;
 if (/threads\.com/i.test(value)) score += 100;
 ```
-最後挑選分數最高的輸入框內容作為最佳的 `embedCode`。
+最後挑選分數最高的輸入框內容作為最佳的 `embedCode`，從而避免誤擷取為純 URL 或其他非完整的嵌入程式碼。
 
 ### 2. 程式碼區塊識別機制 (Code Block Detection)
-擴充功能會透過四個不同的管道來識別並提取貼文中的程式碼片段：
 
-1. **Markdown 圍欄程式碼區塊**：
-   使用正規表達式 `` /```(\w*)\n([\s\S]*?)```/g `` 匹配。若有指定語言標記（例如 ````javascript ... ````），則自動解析為對應語言。
-2. **Monospace 字型樣式區塊**：
-   尋找 DOM 中包含 `style*="monospace"` 屬性的元素，將其文字內容去重後加入。
-3. **HTML 程式碼標籤**：
-   選取 `pre` 或 `code` 元素，並過濾長度大於 5 個字元的內容。
-4. **行內程式碼**：
-   使用 `` /`([^`\n]{2,})`/g `` 正規表達式提取所有行內代碼，並將其合併為 `inline` 類型。
+擴充功能透過 [extractCodeBlocks](./content.js#L551-L602) 組合多種機制來自動識別並提取貼文中的程式碼片段：
+
+- **Markdown 圍欄程式碼區塊**：使用正規表達式 ``/```(\w*)\n([\s\S]*?)```/g`` 匹配。若有指定語言標記（例如 ````javascript ... ````），則自動解析為對應語言。
+- **Monospace 字型樣式區塊**：尋找 DOM 中包含 `style*="monospace"` 屬性的元素，將其文字內容去重後加入。
+- **HTML 程式碼標籤**：選取 `pre` 或 `code` 元素，並過濾長度大於 5 個字元的內容。
+- **行內程式碼**：使用 ``/`([^`\n]{2,})`/g`` 正規表達式提取所有行內程式碼，並將其合併為 `inline` 類型。
 
 ### 3. 背景併發佇列控制 (Background Concurrency Control)
-當用戶點擊「更新時間和內文」時，擴充功能限制最大併發分頁數量為 **3**，以防止過多靜默分頁同時開啟造成系統效能低落或觸發 Threads 流量限制。
+
+當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [updateAllTimestamps](./popup.js#L69-L143) 中限制了最大同時執行分頁數量為 **3**。
 更新模組會以非同步 Worker 迴圈消耗任務佇列：
 
 ```javascript
@@ -214,13 +211,55 @@ const runWorker = async () => {
 };
 ```
 
+### 4. UI 雜訊智慧過濾機制 (UI Noise Filtering)
+
+為了獲取乾淨的貼文文字，[isLikelyThreadsFallbackDescription](./content.js#L109-L141) 提供了一系列的正規表達式過濾鏈，用以排除頁面中無關的 UI 輔助文字、粉絲數、瀏覽數、以及按鈕文字：
+
+```javascript
+return [
+  /\d[\d,.]*\s*(?:萬|千)?次?瀏覽/i,
+  /^回覆[\s\S]*[…\.]{1,3}$/i,
+  /^尚無回覆$/i,
+  /^查看動態$/i,
+  /^更多$/i,
+  /^返回$/i,
+  /^直欄標題$/i,
+  /^附加影音內容$/i,
+  /^新增 GIF$/i,
+  /^展開撰寫工具$/i,
+  /^分享$/i,
+  /^轉發$/i,
+  /^讚$/i,
+  /^為你推薦$/,
+  /^新串文$/,
+  /^搜尋$/,
+  /^動態$/,
+  /^個人檔案$/,
+  /^聯邦宇宙$/,
+  /^洞察報告$/,
+  /^已儲存$/,
+  /^追蹤中$/,
+  /^附帶原始貼文的回覆內容$/,
+  /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
+  /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
+  /查看\s*@.+\s*參與的最新對話/i,
+  /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
+  /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+].some(pattern => pattern.test(normalizedText));
+```
+
+### 5. 智慧標籤映射與自動偵測
+
+除了直接擷取貼文中的標籤（Hashtag）之外，[extractTags](./content.js#L623-L669) 還會對貼文內文進行語境掃描，比對預設的程式語言與技術關鍵字（如 JavaScript, TypeScript, Python, React, Vue, CSS 等），將其自動轉換為對應的分類標籤，提升後續檢索的精確度。
+
 ---
 
 ## 資料儲存 Schema
 
-所有儲存的貼文皆以 `SavedArticle` 物件陣列形式儲存在本機。
+所有儲存的貼文皆以 `SavedArticle` 物件陣列形式儲存在本機的 `chrome.storage.local`。
 
 ### SavedArticle 介面定義
+
 ```typescript
 interface SavedArticle {
   /** 唯一識別碼 (格式為 embed_[時間戳]_[隨機字串] 或 code_[時間戳]_[隨機字串]) */
@@ -283,6 +322,7 @@ interface SavedArticle {
 ```
 
 ### CodeBlock 介面定義
+
 ```typescript
 interface CodeBlock {
   /** 來源類型：markdown圍欄、HTML標籤、Monospace樣式或行內程式碼 */
@@ -306,7 +346,7 @@ interface CodeBlock {
 
 ## 配置與權限宣告
 
-本擴充功能在 [manifest.json](./manifest.json) 中聲明了最低限度的必要權限，無多餘的後門或敏感權限需求：
+本擴充功能在 [manifest.json](./manifest.json) 中聲明了最低限度的必要權限，絕無多餘的後門或敏感權限需求：
 
 | 權限名稱 | 類型 | 說明與用途 |
 | :--- | :--- | :--- |
@@ -320,91 +360,93 @@ interface CodeBlock {
 
 ## 備份與匯出格式規範
 
-本工具提供三種不同用途的 JavaScript 陣列格式匯出，檔案會以 `const posts = [...]` 的結構輸出，以便外部系統直接引用。
+本工具提供三種不同用途的 JavaScript 陣列格式匯出，檔案會以 `const posts = [...]` 的結構輸出，以便外部系統或網頁直接引用。
 
-### 1. 簡易版嵌入碼 (Embed Only)
-- **檔名格式**：`threads-embed-codes-[YYYY-MM-DD].js`
-- **說明**：專為需要在靜態網頁快速嵌入內容設計。自動去除了重複的 `<script src=".../embed.js"></script>` 標籤，並轉義單引號與斜線。
-- **範例格式**：
-  ```javascript
-  const posts = [
-    '<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@user/post/x">...</blockquote>',
-    '<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@user/post/y">...</blockquote>'
-  ];
-  ```
+### 匯出格式對比
 
-### 2. 精選貼文資料 (Featured Data)
-- **檔名格式**：`threads-featured-data-[YYYY-MM-DD].js`
-- **說明**：為外部客製化展示網頁設計，`author` 欄位會自動移除 `@` 前綴。
-- **範例格式**：
-  ```javascript
-  const posts = [
-    {
-      "embedCode": "<blockquote class=\"text-post-media\" data-text-post-permalink=\"https://www.threads.com/@user/post/x\">...</blockquote>",
-      "postLink": "https://www.threads.com/@user/post/x",
-      "author": "user",
-      "content": "貼文純文字內容...",
-      "tags": ["JavaScript", "CSS"]
-    }
-  ];
-  ```
+| 格式名稱 | 檔案命名規範 | 主要用途與特點 |
+| :--- | :--- | :--- |
+| **簡易版嵌入碼 (Embed Only)** | `threads-embed-codes-[YYYY-MM-DD].js` | 專為靜態網頁快速嵌入設計，自動去除重複的 script 標籤並轉義單引號。 |
+| **精選貼文資料 (Featured Data)** | `threads-featured-data-[YYYY-MM-DD].js` | 提供給外部客製化展示網頁，author 欄位會自動移除 `@` 前綴以方便作為 API Key 使用。 |
+| **完整版資料 (Full Data)** | `threads-full-data-[YYYY-MM-DD].js` | 包含所有本機資料結構，適用於跨裝置備份、完整資料轉移或開發調試。 |
 
-### 3. 完整版資料 (Full Data)
-- **檔名格式**：`threads-full-data-[YYYY-MM-DD].js`
-- **說明**：包含本機資料庫的所有 Schema 欄位，適用於跨裝置備份或轉移資料。
-- **範例格式**：
-  ```javascript
-  const posts = [
-    {
-      "id": "embed_1716960000000_abc123xyz",
-      "postLink": "https://www.threads.com/@user/post/x",
-      "embedCode": "<blockquote class=\"text-post-media\" ...>...</blockquote>",
-      "timestamp": "2026-05-29T02:00:00.000Z",
-      "timestampTitle": "2026年5月29日 上午10:00",
-      "savedAt": "2026-05-29T02:10:00.000Z",
-      "content": "貼文純文字內容",
-      "author": "@user",
-      "authorUrl": "https://www.threads.com/@user",
-      "tags": ["JavaScript"],
-      "codeBlocks": [],
-      "codeCount": 0,
-      "status": "active"
-    }
-  ];
-  ```
+### 範例格式說明
 
-### 4. 智慧匯入模式 (Smart Import)
-當您匯入備份檔案時，系統會開啟自訂 Modal 讓您選擇以下兩種模式之一：
+#### 1. 簡易版嵌入碼
+```javascript
+const posts = [
+  '<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@user/post/x">...</blockquote>',
+  '<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@user/post/y">...</blockquote>'
+];
+```
+
+#### 2. 精選貼文資料
+```javascript
+const posts = [
+  {
+    "embedCode": "<blockquote class=\"text-post-media\" data-text-post-permalink=\"https://www.threads.com/@user/post/x\">...</blockquote>",
+    "postLink": "https://www.threads.com/@user/post/x",
+    "author": "user",
+    "content": "貼文純文字內容...",
+    "tags": ["JavaScript", "CSS"]
+  }
+];
+```
+
+#### 3. 完整版資料
+```javascript
+const posts = [
+  {
+    "id": "embed_1716960000000_abc123xyz",
+    "postLink": "https://www.threads.com/@user/post/x",
+    "embedCode": "<blockquote class=\"text-post-media\" ...>...</blockquote>",
+    "timestamp": "2026-05-29T02:00:00.000Z",
+    "timestampTitle": "2026年5月29日 上午10:00",
+    "savedAt": "2026-05-29T02:10:00.000Z",
+    "content": "貼文純文字內容",
+    "author": "@user",
+    "authorUrl": "https://www.threads.com/@user",
+    "tags": ["JavaScript"],
+    "codeBlocks": [],
+    "codeCount": 0,
+    "status": "active"
+  }
+];
+```
+
+### 智慧匯入模式 (Smart Import)
+
+當匯入備份檔案時，系統會開啟自訂的控制面板 Modal 供您選擇匯入策略：
 
 > [!IMPORTANT]
-> - **合併資料 (Merge)**：比對 `postLink`。如果該貼文已存在於本機，則略過匯入，僅將新貼文追加到列表最前方，防止重複。
-> - **覆寫資料 (Overwrite)**：直接清空現有的本機資料，完全以匯入檔案中的內容取代。
+> - **合併資料 (Merge)**：進行貼文去重。若該貼文已存在於本機儲存，則略過該筆匯入，僅將新貼文追加至清單最前端。
+> - **完全覆寫 (Overwrite)**：直接清空現有的本機資料，完全以匯入檔案中的內容取代，且該操作為不可逆。
 
-- **格式容錯**：匯入解析器會依序嘗試 `JSON.parse` -> `new Function()` 動態求值 -> 正規表達式提取，可完美相容標準 JSON 與帶有 `const posts = ` 前綴的 JS 腳本檔案。
+本擴充功能的匯入解析器具備極高的格式容錯能力，能依序嘗試 `JSON.parse`、`new Function()` 動態求值以及正規表達式提取，可完美相容標準 JSON 及帶有 `const posts =` 等自訂變數宣告前綴的 JavaScript 腳本。
 
 ---
 
 ## 疑難排解 FAQ
 
 > [!WARNING]
-> **Q：點擊取得內嵌程式碼後，網頁上沒有出現「儲存成功」的提示？**
-> - 請確認您的瀏覽器是否已登入 Threads 帳號（未登入時，Threads 的嵌入框可能無法正常產生代碼）。
-> - 確認當前頁面網址是否為標準的 `threads.com` 或 `www.threads.com`。
-> - 若瀏覽器主控台 (Console) 出現 `Extension context invalidated` 警告，此為 Chrome 更新擴充功能後的正常現象，只需重新整理該 Threads 網頁即可恢復運作。
+> **問題：點擊取得內嵌程式碼後，網頁上沒有出現「儲存成功」的提示？**
+> - 請確認瀏覽器是否已登入 Threads 帳號。未登入狀態下，Threads 官方對話框可能無法正確產生內嵌代碼。
+> - 確認當前頁面網址是否為標準的 `threads.com` 或 `www.threads.com` 網域。
+> - 若瀏覽器開發者主控台出現 `Extension context invalidated` 警告，此為 Chrome 重新載入擴充功能後的常見安全機制，只需重新整理對應的 Threads 網頁即可恢復運作。
 
 > [!NOTE]
-> **Q：為什麼很多貼文在背景更新後被標記為「失效貼文」？**
-> - 這代表該貼文可能已被原作者刪除、帳號設為私密，或是原作者封鎖了匿名存取。
-> - 背景分頁的網路載入逾時（預設為 8 秒）也可能導致暫時性無法讀取，因而判定為失效。
-> - 若貼文隨後恢復正常，在下一次更新時，系統偵測到內容即會自動將其恢復為 `active` 狀態。
+> **問題：為什麼有些貼文在背景更新後被標記為「失效貼文」？**
+> - 這代表貼文可能已被原作者刪除、帳號被設為私密，或原作者封鎖了匿名存取。
+> - 背景分頁的網路連線逾時（預設為 8 秒）也會導致暫時性無法讀取，因而判定為失效。
+> - 若貼文隨後恢復正常，在下一次更新時，系統偵測到內容便會自動將其回復為 `active` 狀態。
 
 > [!CAUTION]
-> **Q：Threads 官方改版後，擴充功能無法正常擷取？**
-> - 本工具高度依賴 Threads 前端網頁的 DOM 選擇器特徵（例如 `span[class*="xo1l8bm"]`）。
-> - 若 Threads 官方進行了重大的樣式類別 (class) 或 DOM 結構修改，將會導致擷取演算法失效。此時需要更新 [content.js](./content.js) 中對應的 CSS 選擇器，歡迎提交 Issue 回報。
+> **問題：Threads 官方改版後，擴充功能無法正常擷取？**
+> - 本工具高度依賴 Threads 前端網頁的 DOM 選擇器特徵（例如特定編碼的 class 類別）。
+> - 若 Threads 官方進行了重大的結構或樣式修改，將會導致擷取演算法失效。此時請將問題提交至 GitHub Issue，我們將會盡快更新 [content.js](./content.js) 中對應的 CSS 選擇器。
 
 > [!IMPORTANT]
-> **Q：本機儲存空間是否有限制？**
+> **問題：本機儲存空間是否有限制？**
 > - `chrome.storage.local` 在多數 Chromium 瀏覽器中預設有 **10MB** 的配額限制。
 > - 當儲存空間接近上限並拋出 `QUOTA_BYTES_EXCEEDED` 錯誤時，擴充功能會提示您清理。建議定期將完整版資料匯出備份，並清除不需要的舊貼文。
 
@@ -416,26 +458,22 @@ interface CodeBlock {
 
 ### 開發注意事項與限制
 
-- **零依賴原則**：專案保持原生輕量化設計，請勿引入任何 npm 依賴套件或外部 CDN 框架。
-- **嚴格 CSP 相容**：所有 HTML 頁面及注入的指令皆**禁止使用行內樣式 (inline style) 與行內事件監聽器**（例如 `onclick="..."`），必須使用 `addEventListener`。
+- **零依賴原則**：專案保持原生輕量化設計，請勿引入任何npm 依賴套件或外部 CDN 框架。
+- **嚴格 CSP 相容**：所有 HTML 頁面及注入的指令皆**禁止使用行內樣式 (inline style) 與行內事件監聽器**（例如 `onclick="..."`），必須使用 `addEventListener` 進行綁定。
 - **欄位擴展**：若在 [content.js](./content.js) 中新增或修改了儲存欄位，請務必同步更新本 README 的 [資料儲存 Schema](#資料儲存-schema) 區段。
-- **套件管理**：若您在開發過程中需要執行自訂腳本或建立輔助工具，請優先使用 `bun` 套件管理器而非 `npm`：
-  ```bash
-  bun install
-  ```
 
 ---
 
 ## Changelog
 
-本專案遵循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/) 格式規範。
+本專案遵循 Keep a Changelog 格式規範。
 
 ### [Unreleased]
 
 ### [2.0.5] - 2026-07-06
 #### 新增
-- 實作 `safeStorageGet` / `safeStorageSet` 封裝，防止 context invalidated 後未捕獲的例外中斷腳本執行。
-- 支援 `processOpenEmbedDialogs` 主動偵測機制，即使用戶未透過擴充功能按鈕開啟嵌入對話框也能成功擷取。
+- 實作 [safeStorageGet](./content.js#L20-L31) 與 [safeStorageSet](./content.js#L32-L43) 封裝，防止 context invalidated 後未捕獲的例外中斷腳本執行。
+- 支援 [processOpenEmbedDialogs](./content.js#L402-L442) 主動偵測機制，即使用戶未透過擴充功能按鈕開啟嵌入對話框也能成功擷取。
 
 #### 改善
 - 擴充過濾規則至 20 種以上的 UI 雜訊模式，並新增英文語系介面的過濾規則。
@@ -461,8 +499,7 @@ interface CodeBlock {
 
 ## AI 友善文件說明
 
-> [!NOTE]
-> 本區段提供給 AI 代理、LLM 網頁爬蟲與 RAG 索引工具快速讀取本專案結構。
+本區段提供給 AI 代理、LLM 網頁爬蟲與 RAG 索引工具快速讀取本專案結構。
 
 ```markdown
 # Threads 程式碼儲存器
