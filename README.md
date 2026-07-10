@@ -196,19 +196,15 @@ if (/threads\.com/i.test(value)) score += 100;
 - **HTML 程式碼標籤**：選取 `pre` 或 `code` 元素，並過濾長度大於 5 個字元的內容。
 - **行內程式碼**：使用 ``/`([^`\n]{2,})`/g`` 正規表達式提取所有行內程式碼，並將其合併為 `inline` 類型。
 
-### 3. 背景併發佇列控制 (Background Concurrency Control)
+### 3. 背景佇列控制 (Background Queue Control)
 
-當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [updateAllTimestamps](./popup.js#L69-L143) 中限制了最大同時執行分頁數量為 **3**。
-更新模組會以非同步 Worker 迴圈消耗任務佇列：
+當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [updateAllTimestamps](./popup.js#L69-L143) 中限制為一篇一篇循序（Sequential）更新。
+更新模組會以非同步迴圈依序處理任務佇列：
 
 ```javascript
-const maxConcurrency = 3;
-const runWorker = async () => {
-  while (tasks.length > 0) {
-    const article = tasks.shift();
-    // 執行分頁建立、載入等待、腳本注入與資料比對
-  }
-};
+for (const article of articlesNeedingUpdate) {
+  // 執行分頁建立、載入等待、腳本注入與資料比對
+}
 ```
 
 ### 4. UI 雜訊智慧過濾機制 (UI Noise Filtering)

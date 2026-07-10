@@ -87,54 +87,41 @@ async function updateAllTimestamps() {
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  const maxConcurrency = 3;
-  const tasks = [...articlesNeedingUpdate];
-  const runWorker = async () => {
-    while (tasks.length > 0) {
-      const article = tasks.shift();
-      if (!article) break;
-      let localIndex = 0;
-      try {
-        const postInfo = await fetchPostInfoViaTab(article.postLink);
-        currentIndex++;
-        localIndex = currentIndex;
-        if (postInfo) {
-          if (postInfo.status === 'expired') {
-            markArticleAsExpired(article, postInfo.reason);
-            failCount++;
-            console.warn(`[Popup] 更新結果看起來是失效頁面，略過 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
-          } else {
-            clearArticleExpiredStatus(article);
-            if (postInfo.datetime) {
-              article.timestamp = postInfo.datetime;
-              article.timestampTitle = postInfo.title || '';
-            }
-            if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
-              article.content = postInfo.content;
-            }
-            if (Array.isArray(postInfo.tags)) {
-              article.tags = postInfo.tags;
-            }
-            article.timestampUpdatedAt = new Date().toISOString();
-            successCount++;
-            console.log(`[Popup] 更新成功 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
-          }
-        } else {
+  for (const article of articlesNeedingUpdate) {
+    try {
+      const postInfo = await fetchPostInfoViaTab(article.postLink);
+      currentIndex++;
+      if (postInfo) {
+        if (postInfo.status === 'expired') {
+          markArticleAsExpired(article, postInfo.reason);
           failCount++;
-          console.log(`[Popup] 更新失敗 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink);
+          console.warn(`[Popup] 更新結果看起來是失效頁面，略過 (${currentIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
+        } else {
+          clearArticleExpiredStatus(article);
+          if (postInfo.datetime) {
+            article.timestamp = postInfo.datetime;
+            article.timestampTitle = postInfo.title || '';
+          }
+          if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
+            article.content = postInfo.content;
+          }
+          if (Array.isArray(postInfo.tags)) {
+            article.tags = postInfo.tags;
+          }
+          article.timestampUpdatedAt = new Date().toISOString();
+          successCount++;
+          console.log(`[Popup] 更新成功 (${currentIndex}/${articlesNeedingUpdate.length}):`, article.postLink, postInfo);
         }
-      } catch (err) {
+      } else {
         failCount++;
-        console.error(`[Popup] 更新錯誤 (${localIndex}/${articlesNeedingUpdate.length}):`, article.postLink, err);
+        console.log(`[Popup] 更新失敗 (${currentIndex}/${articlesNeedingUpdate.length}):`, article.postLink);
       }
-      showToast(`進度: ${localIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
+    } catch (err) {
+      failCount++;
+      console.error(`[Popup] 更新錯誤 (${currentIndex}/${articlesNeedingUpdate.length}):`, article.postLink, err);
     }
-  };
-  const workers = [];
-  for (let i = 0; i < Math.min(maxConcurrency, articlesNeedingUpdate.length); i++) {
-    workers.push(runWorker());
+    showToast(`進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
   }
-  await Promise.all(workers);
   await chrome.storage.local.set({ savedArticles: allArticles });
   filteredArticles = [...allArticles];
   sortArticles();

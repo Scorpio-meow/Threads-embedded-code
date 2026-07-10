@@ -749,51 +749,38 @@ async function updateAllTimestamps() {
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  const maxConcurrency = 3;
-  const tasks = [...articlesNeedingUpdate];
-  const runWorker = async () => {
-    while (tasks.length > 0) {
-      const article = tasks.shift();
-      if (!article) break;
-      let localIndex = 0;
-      try {
-        const postInfo = await fetchPostInfoViaTab(article.postLink);
-        currentIndex++;
-        localIndex = currentIndex;
-        if (postInfo) {
-          if (postInfo.status === 'expired') {
-            markArticleAsExpired(article, postInfo.reason);
-            failCount++;
-          } else {
-            clearArticleExpiredStatus(article);
-            if (postInfo.datetime) {
-              article.timestamp = postInfo.datetime;
-              article.timestampTitle = postInfo.title || '';
-            }
-            if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
-              article.content = postInfo.content;
-            }
-            if (Array.isArray(postInfo.tags)) {
-              article.tags = postInfo.tags;
-            }
-            article.timestampUpdatedAt = new Date().toISOString();
-            successCount++;
-          }
-        } else {
+  for (const article of articlesNeedingUpdate) {
+    try {
+      const postInfo = await fetchPostInfoViaTab(article.postLink);
+      currentIndex++;
+      if (postInfo) {
+        if (postInfo.status === 'expired') {
+          markArticleAsExpired(article, postInfo.reason);
           failCount++;
+        } else {
+          clearArticleExpiredStatus(article);
+          if (postInfo.datetime) {
+            article.timestamp = postInfo.datetime;
+            article.timestampTitle = postInfo.title || '';
+          }
+          if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
+            article.content = postInfo.content;
+          }
+          if (Array.isArray(postInfo.tags)) {
+            article.tags = postInfo.tags;
+          }
+          article.timestampUpdatedAt = new Date().toISOString();
+          successCount++;
         }
-      } catch (err) {
-        console.error('[Dashboard] 擷取錯誤:', err);
+      } else {
         failCount++;
       }
-      showToast(`更新進度: ${localIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
+    } catch (err) {
+      console.error('[Dashboard] 擷取錯誤:', err);
+      failCount++;
     }
-  };
-  const workers = [];
-  for (let i = 0; i < Math.min(maxConcurrency, articlesNeedingUpdate.length); i++) {
-    workers.push(runWorker());
+    showToast(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
   }
-  await Promise.all(workers);
   await chrome.storage.local.set({ savedArticles: allArticles });
   selectedArticleIds.clear();
   calculateStatistics();
