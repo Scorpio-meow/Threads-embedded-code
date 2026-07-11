@@ -68,8 +68,8 @@ function refreshAllEmbedCodes() {
 }
 async function updateAllTimestamps() {
   const baseArticles = selectedArticleIds.size > 0
-    ? allArticles.filter(a => selectedArticleIds.has(a.id))
-    : allArticles;
+    ? filteredArticles.filter(a => selectedArticleIds.has(a.id))
+    : filteredArticles;
   if (baseArticles.length === 0) {
     showToast('沒有文章可以更新');
     return;

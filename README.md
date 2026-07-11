@@ -198,7 +198,7 @@ if (/threads\.com/i.test(value)) score += 100;
 
 ### 3. 背景佇列控制 (Background Queue Control)
 
-當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [updateAllTimestamps](./popup.js#L69-L143) 中限制為一篇一篇循序（Sequential）更新。
+當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [popup.js](./popup.js#L69-L143) 與 [dashboard.js](./dashboard.js#L729-L789) 中限制為一篇一篇循序（Sequential）更新。更新的先後順序與範圍會依照目前畫面上已套用的篩選與排序結果（即 `filteredArticles`）進行。
 更新模組會以非同步迴圈依序處理任務佇列：
 
 ```javascript
@@ -465,6 +465,9 @@ const posts = [
 本專案遵循 Keep a Changelog 格式規範。
 
 ### [Unreleased]
+
+#### 改善
+- 優化背景更新貼文資料的順序，使其依照目前畫面上的排序與篩選結果依序更新（[popup.js](./popup.js#L69) 與 [dashboard.js](./dashboard.js#L729)）。
 
 ### [2.0.5] - 2026-07-06
 #### 新增
