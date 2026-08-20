@@ -25,6 +25,8 @@
       <div class="global-stats">
         <span class="stat-item">已儲存：<strong id="totalSavedCount">0</strong> 篇</span>
         <span class="stat-item">失效連結：<strong id="totalExpiredCount" class="danger-text">0</strong> 篇</span>
+        <span class="stat-item is-hidden" id="updatingStatItem">更新中：<strong id="updatingProgressCount"
+            class="warning-text">0/0</strong></span>
       </div>
       <a href="https://www.threads.com/" target="_blank" rel="noopener noreferrer" class="threads-link">
         前往 Threads
@@ -114,6 +116,19 @@
         </div>
         <div class="maintenance-actions">
           <button class="btn btn-warning" id="updateTimestampsBtn" title="開啟暫時分頁，向 Threads 擷取最新發文時間與內容">更新貼文資料</button>
+          <div class="update-controls is-hidden" id="updateControlsContainer">
+            <div class="update-progress-info">
+              <span class="update-progress-text" id="updateProgressText">更新中 (0/0)</span>
+              <span class="update-badge" id="updateStatusBadge">執行中</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="updateProgressFill"></div>
+            </div>
+            <div class="update-btn-group">
+              <button class="btn btn-small btn-primary" id="pauseUpdateBtn" title="暫停/繼續更新">暫停</button>
+              <button class="btn btn-small btn-danger" id="cancelUpdateBtn" title="停止更新">取消</button>
+            </div>
+          </div>
           <button class="btn btn-danger" id="clearBtn">清除全部資料</button>
         </div>
       </div>

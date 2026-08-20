@@ -69,21 +69,29 @@ function isSinglePostPage() {
 function extractContentFromDOM(container) {
   const postPage0 = container.querySelector('[data-pagelet="threads_post_page_0"]');
   const searchRoot = postPage0 || container;
-  const candidateContainers = Array.from(
+  let rawContainers = Array.from(
     searchRoot.querySelectorAll(
-      'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
       'span[class*="xo1l8bm"][dir="auto"], ' +
       'span[class*="xi7mnp6"][dir="auto"], ' +
-      'div[class*="x1iorvi4"][dir="auto"], ' +
-      'div[dir="auto"]'
+      'div[class*="x1iorvi4"][dir="auto"]'
     )
-  ).filter(el => {
+  );
+  if (rawContainers.length === 0) {
+    rawContainers = Array.from(
+      searchRoot.querySelectorAll(
+        'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
+        'div[dir="auto"]'
+      )
+    );
+  }
+  const candidateContainers = rawContainers.filter(el => {
     if (el.closest('h1') || el.closest('h2') || el.closest('h3') || el.closest('[aria-label="直欄標題"]')) return false;
-    if (el.closest('button') || el.closest('[role="button"]')) return false;
+    if (el.closest('button') || el.closest('[role="button"]') || el.querySelector('button') || el.querySelector('[role="button"]')) return false;
     if (el.closest('[contenteditable="true"]')) return false;
     if (el.closest('time') || el.querySelector('time')) return false;
     if (el.closest('a[href*="/post/"]') || el.closest('a[href*="/t/"]') || el.querySelector('a[href*="/post/"]') || el.querySelector('a[href*="/t/"]')) return false;
-    if (el.closest('a[href*="/@"]') && !el.closest('div[dir="auto"]')) return false;
+    if (el.closest('a[href*="/@"]')) return false;
+    if (el.closest('picture') || el.closest('video') || el.closest('canvas') || el.closest('[aria-roledescription="slide"]') || el.querySelector('img, video, picture, canvas')) return false;
     if (el.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
     if (!postPage0 && !el.closest('[data-pressable-container]')) return false;
     let parent = el.parentElement;
@@ -109,9 +117,52 @@ function extractContentFromDOM(container) {
   );
   const candidates = topContainers
     .map(el => (el.innerText || el.textContent || '').trim())
+    .map(text => cleanExtractedPostContent(text))
     .filter(text => text && !isLikelyThreadsFallbackDescription(text))
     .filter((text, index, array) => array.indexOf(text) === index);
-  return candidates.join('\n\n');
+  return cleanExtractedPostContent(candidates.join('\n\n'));
+}
+function cleanExtractedPostContent(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let cleaned = rawText
+    .replace(/[\u00a0\u2000-\u200b\u2028\u2029]/g, ' ')
+    .replace(/(?:[\r\n\s])*\b\d+\s*[\r\n\s]*[\/／]\s*[\r\n\s]*\d+\b(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?\s*$/g, '')
+    .replace(/^\s*\b\d+\s*[\r\n\s]*[\/／]\s*[\r\n\s]*\d+\b(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?(?:[\r\n\s])*/g, '')
+    .replace(/(?:[\r\n\s])*(?:查看|隱藏)?翻譯\s*$/g, '')
+    .replace(/(?:[\r\n\s])*(?:See|Hide)?\s*translation\s*$/gi, '')
+    .replace(/(?:[\r\n\s])*查看原文\s*$/g, '')
+    .trim();
+  const lines = cleaned.split(/\r?\n/);
+  const filteredLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] !== '') {
+        filteredLines.push('');
+      }
+      continue;
+    }
+    if (isLikelyThreadsFallbackDescription(line)) {
+      continue;
+    }
+    if (/^[\/／]$/.test(line)) {
+      if (filteredLines.length > 0 && /^\d+$/.test(filteredLines[filteredLines.length - 1].trim())) {
+        filteredLines.pop();
+      }
+      if (i + 1 < lines.length && /^\d+$/.test(lines[i + 1].trim())) {
+        i++;
+      }
+      continue;
+    }
+    filteredLines.push(lines[i]);
+  }
+  while (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] === '') {
+    filteredLines.pop();
+  }
+  while (filteredLines.length > 0 && filteredLines[0] === '') {
+    filteredLines.shift();
+  }
+  return filteredLines.join('\n');
 }
 function isLikelyThreadsFallbackDescription(text) {
   const normalizedText = String(text).replace(/\s+/g, ' ').trim();
@@ -138,6 +189,11 @@ function isLikelyThreadsFallbackDescription(text) {
     /^洞察報告$/,
     /^已儲存$/,
     /^追蹤中$/,
+    /^追蹤$/,
+    /^已追蹤$/,
+    /^(?:查看|隱藏)?翻譯$/i,
+    /^(?:See|Hide)?\s*translation$/i,
+    /^查看原文$/i,
     /^附帶原始貼文的回覆內容$/,
     /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
     /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
@@ -148,7 +204,10 @@ function isLikelyThreadsFallbackDescription(text) {
     /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
     /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
     /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
-    /^(?:剛剛|昨天|前天|yesterday|just now)$/i
+    /^(?:剛剛|昨天|前天|yesterday|just now)$/i,
+    /^\d+\s*[\/／]\s*\d+(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?$/i,
+    /^\d+\s*(?:of|之)\s*\d+$/i,
+    /^(?:圖片|相片|photo|image)\s*\d+\s*[\/／,，共of\s]+\d+(?:\s*張)?$/i
   ].some(pattern => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {

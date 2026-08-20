@@ -223,7 +223,7 @@ for (const article of articlesNeedingUpdate) {
 
 ### 5. UI 與時間雜訊智慧過濾機制 (UI Noise Filtering)
 
-為了獲取乾淨的貼文文字，[isLikelyThreadsFallbackDescription](./content.js#L120-L152) 提供了一系列的正規表達式過濾鏈，用以排除頁面中無關的 UI 輔助文字、相對時間標籤、粉絲數、瀏覽數、以及按鈕文字：
+為了獲取乾淨的貼文文字，[content.js](./content.js) 與 [dashboard.js](./dashboard.js) 結合了 `isLikelyThreadsFallbackDescription` 正規表達式與 `cleanExtractedPostContent` 內容清洗器，精確剔除翻譯按鈕、輪播計數（如 `1/2`、`1\n/\n2`）、相對時間標籤、粉絲數、瀏覽數、以及按鈕文字：
 
 ```javascript
 return [
@@ -249,6 +249,11 @@ return [
   /^洞察報告$/,
   /^已儲存$/,
   /^追蹤中$/,
+  /^追蹤$/,
+  /^已追蹤$/,
+  /^(?:查看|隱藏)?翻譯$/i,
+  /^(?:See|Hide)?\s*translation$/i,
+  /^查看原文$/i,
   /^附帶原始貼文的回覆內容$/,
   /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
   /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
@@ -259,7 +264,10 @@ return [
   /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
   /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
   /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
-  /^(?:剛剛|昨天|前天|yesterday|just now)$/i
+  /^(?:剛剛|昨天|前天|yesterday|just now)$/i,
+  /^\d+\s*[\/／]\s*\d+(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?$/i,
+  /^\d+\s*(?:of|之)\s*\d+$/i,
+  /^(?:圖片|相片|photo|image)\s*\d+\s*[\/／,，共of\s]+\d+(?:\s*張)?$/i
 ].some(pattern => pattern.test(normalizedText));
 ```
 

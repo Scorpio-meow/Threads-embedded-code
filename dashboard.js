@@ -4,6 +4,9 @@ let currentSort = 'savedAt-desc';
 let selectedArticleIds = new Set();
 let currentFilter = 'all';
 let currentFilterValue = '';
+let isUpdatingTimestamps = false;
+let isUpdatePaused = false;
+let cancelUpdateRequested = false;
 let confirmModalResolve = null;
 let importModalResolve = null;
 document.addEventListener('DOMContentLoaded', async () => {
@@ -152,6 +155,45 @@ function setupEventListeners() {
   });
   document.getElementById('importFileInput').addEventListener('change', handleImportFile);
   document.getElementById('updateTimestampsBtn').addEventListener('click', updateAllTimestamps);
+  document.getElementById('pauseUpdateBtn')?.addEventListener('click', () => {
+    if (!isUpdatingTimestamps) return;
+    isUpdatePaused = !isUpdatePaused;
+    const pauseBtn = document.getElementById('pauseUpdateBtn');
+    const updateStatusBadge = document.getElementById('updateStatusBadge');
+    if (isUpdatePaused) {
+      if (pauseBtn) {
+        pauseBtn.textContent = '繼續';
+        pauseBtn.classList.remove('btn-primary');
+        pauseBtn.classList.add('btn-warning');
+      }
+      if (updateStatusBadge) {
+        updateStatusBadge.textContent = '已暫停';
+        updateStatusBadge.classList.add('paused');
+      }
+      showToast('貼文更新已暫停');
+    } else {
+      if (pauseBtn) {
+        pauseBtn.textContent = '暫停';
+        pauseBtn.classList.remove('btn-warning');
+        pauseBtn.classList.add('btn-primary');
+      }
+      if (updateStatusBadge) {
+        updateStatusBadge.textContent = '執行中';
+        updateStatusBadge.classList.remove('paused');
+      }
+      showToast('繼續執行更新');
+    }
+  });
+  document.getElementById('cancelUpdateBtn')?.addEventListener('click', () => {
+    if (!isUpdatingTimestamps) return;
+    cancelUpdateRequested = true;
+    isUpdatePaused = false;
+    const cancelBtn = document.getElementById('cancelUpdateBtn');
+    if (cancelBtn) cancelBtn.disabled = true;
+    const updateStatusBadge = document.getElementById('updateStatusBadge');
+    if (updateStatusBadge) updateStatusBadge.textContent = '停止中...';
+    showToast('正在停止更新作業...');
+  });
   document.getElementById('clearBtn').addEventListener('click', clearAllArticles);
   document.getElementById('batchCopyEmbedBtn').addEventListener('click', batchCopyEmbedCodes);
   document.getElementById('batchDeleteBtn').addEventListener('click', batchDeleteArticles);
@@ -727,6 +769,19 @@ async function refreshAllEmbedCodes() {
   showToast(`完成！成功重新生成 ${successCount} 篇`);
 }
 async function updateAllTimestamps() {
+  const updateBtn = document.getElementById('updateTimestampsBtn');
+  const updateControlsContainer = document.getElementById('updateControlsContainer');
+  const updateProgressText = document.getElementById('updateProgressText');
+  const updateProgressFill = document.getElementById('updateProgressFill');
+  const updateStatusBadge = document.getElementById('updateStatusBadge');
+  const pauseUpdateBtn = document.getElementById('pauseUpdateBtn');
+  const cancelUpdateBtn = document.getElementById('cancelUpdateBtn');
+  const updatingStatItem = document.getElementById('updatingStatItem');
+  const updatingProgressCount = document.getElementById('updatingProgressCount');
+  if (isUpdatingTimestamps) {
+    showToast('更新作業已在進行中');
+    return;
+  }
   const baseArticles = selectedArticleIds.size > 0
     ? filteredArticles.filter(a => selectedArticleIds.has(a.id))
     : filteredArticles;
@@ -742,100 +797,197 @@ async function updateAllTimestamps() {
   const isBatch = selectedArticleIds.size > 0;
   const confirmed = await showConfirm(
     '更新貼文資料',
-    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇文章的精確發文時間和內文嗎？\n\n系統將會依序開啟背景分頁抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`
+    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇文章的精確發文時間和內文嗎？\n\n系統將重用單一背景分頁依序快速抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`
   );
   if (!confirmed) return;
+  isUpdatingTimestamps = true;
+  isUpdatePaused = false;
+  cancelUpdateRequested = false;
+  if (updateBtn) updateBtn.classList.add('is-hidden');
+  if (updateControlsContainer) updateControlsContainer.classList.remove('is-hidden');
+  if (pauseUpdateBtn) {
+    pauseUpdateBtn.textContent = '暫停';
+    pauseUpdateBtn.classList.remove('btn-warning');
+    pauseUpdateBtn.classList.add('btn-primary');
+    pauseUpdateBtn.disabled = false;
+  }
+  if (cancelUpdateBtn) cancelUpdateBtn.disabled = false;
+  if (updateStatusBadge) {
+    updateStatusBadge.textContent = '執行中';
+    updateStatusBadge.classList.remove('paused');
+  }
+  if (updateProgressText) updateProgressText.textContent = `更新中 (0/${articlesNeedingUpdate.length})`;
+  if (updateProgressFill) updateProgressFill.style.width = '0%';
+  if (updatingStatItem) updatingStatItem.classList.remove('is-hidden');
+  if (updatingProgressCount) updatingProgressCount.textContent = `0/${articlesNeedingUpdate.length}`;
   showToast(`正在背景更新資料... (0/${articlesNeedingUpdate.length})`);
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
-  for (const article of articlesNeedingUpdate) {
+  let workerTab = null;
+  async function getOrCreateWorkerTab() {
+    if (workerTab && workerTab.id) {
+      try {
+        const tab = await chrome.tabs.get(workerTab.id);
+        if (tab) return workerTab.id;
+      } catch (e) {
+        workerTab = null;
+      }
+    }
     try {
-      const postInfo = await fetchPostInfoViaTab(article.postLink);
+      workerTab = await chrome.tabs.create({
+        url: 'about:blank',
+        active: false
+      });
+      return workerTab.id;
+    } catch (e) {
+      console.error('[Dashboard] 建立背景分頁失敗:', e);
+      return null;
+    }
+  }
+  async function closeWorkerTab() {
+    if (workerTab && workerTab.id) {
+      try {
+        await chrome.tabs.remove(workerTab.id);
+      } catch (e) { }
+      workerTab = null;
+    }
+  }
+  try {
+    for (const article of articlesNeedingUpdate) {
+      if (cancelUpdateRequested) {
+        console.log('[Dashboard] 使用者取消批次更新');
+        break;
+      }
+      while (isUpdatePaused && !cancelUpdateRequested) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      if (cancelUpdateRequested) {
+        console.log('[Dashboard] 使用者取消批次更新');
+        break;
+      }
       currentIndex++;
-      if (postInfo) {
-        if (postInfo.status === 'expired') {
-          markArticleAsExpired(article, postInfo.reason);
+      const progressPct = Math.round((currentIndex / articlesNeedingUpdate.length) * 100);
+      if (updateProgressText) {
+        updateProgressText.textContent = `更新中 (${currentIndex}/${articlesNeedingUpdate.length})`;
+      }
+      if (updateProgressFill) {
+        updateProgressFill.style.width = `${progressPct}%`;
+      }
+      if (updatingProgressCount) {
+        updatingProgressCount.textContent = `${currentIndex}/${articlesNeedingUpdate.length}`;
+      }
+      try {
+        const tabId = await getOrCreateWorkerTab();
+        if (!tabId) {
           failCount++;
-        } else {
-          clearArticleExpiredStatus(article);
-          if (postInfo.datetime) {
-            article.timestamp = postInfo.datetime;
-            article.timestampTitle = postInfo.title || '';
-          }
-          if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
-            article.content = postInfo.content;
-          }
-          if (Array.isArray(postInfo.tags)) {
-            article.tags = postInfo.tags;
-          }
-          article.timestampUpdatedAt = new Date().toISOString();
-          successCount++;
+          continue;
         }
-      } else {
+        const postInfo = await fetchPostInfoWithReusableTab(tabId, article.postLink);
+        if (postInfo) {
+          if (postInfo.status === 'expired') {
+            markArticleAsExpired(article, postInfo.reason);
+            failCount++;
+          } else {
+            clearArticleExpiredStatus(article);
+            if (postInfo.datetime) {
+              article.timestamp = postInfo.datetime;
+              article.timestampTitle = postInfo.title || '';
+            }
+            if (typeof postInfo.content === 'string' && !postInfo.content.includes('加入 Threads 即可分享意見')) {
+              article.content = postInfo.content;
+            }
+            if (Array.isArray(postInfo.tags)) {
+              article.tags = postInfo.tags;
+            }
+            article.timestampUpdatedAt = new Date().toISOString();
+            successCount++;
+          }
+        } else {
+          await closeWorkerTab();
+          failCount++;
+        }
+      } catch (err) {
+        console.error('[Dashboard] 擷取錯誤:', err);
+        await closeWorkerTab();
         failCount++;
       }
-    } catch (err) {
-      console.error('[Dashboard] 擷取錯誤:', err);
-      failCount++;
+      await chrome.storage.local.set({ savedArticles: allArticles });
+      calculateStatistics();
+      renderTagsCloud();
+      renderAuthorsCloud();
+      updateFilterValueOptions();
+      applyFilters();
+      if (!isUpdatePaused) {
+        showToast(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
+      }
     }
-    showToast(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
+  } finally {
+    await closeWorkerTab();
+    isUpdatingTimestamps = false;
+    isUpdatePaused = false;
+    cancelUpdateRequested = false;
+    if (updateControlsContainer) updateControlsContainer.classList.add('is-hidden');
+    if (updateBtn) updateBtn.classList.remove('is-hidden');
+    if (updatingStatItem) updatingStatItem.classList.add('is-hidden');
+    selectedArticleIds.clear();
+    calculateStatistics();
+    renderTagsCloud();
+    renderAuthorsCloud();
+    updateFilterValueOptions();
+    applyFilters();
+    if (currentIndex < articlesNeedingUpdate.length && cancelUpdateRequested) {
+      showToast(`更新已中途停止！已處理: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount}, 失敗/失效: ${failCount})`);
+    } else {
+      showToast(`資料更新完成！成功: ${successCount}, 失敗/失效: ${failCount}`);
+    }
   }
-  await chrome.storage.local.set({ savedArticles: allArticles });
-  selectedArticleIds.clear();
-  calculateStatistics();
-  applyFilters();
-  showToast(`資料更新完成！成功: ${successCount}, 失敗/失效: ${failCount}`);
 }
-async function fetchPostInfoViaTab(postLink) {
-  let tab = null;
+async function fetchPostInfoWithReusableTab(tabId, postLink) {
   try {
     const safeUrl = sanitizeUrl(postLink);
     if (safeUrl === '#') return null;
-    tab = await chrome.tabs.create({
-      url: safeUrl,
-      active: false
-    });
-    await waitForTabLoad(tab.id);
-    const loadedTab = await chrome.tabs.get(tab.id);
+    await chrome.tabs.update(tabId, { url: safeUrl });
+    await waitForTabNavigation(tabId, 4500);
+    const loadedTab = await chrome.tabs.get(tabId);
     if (!isSameThreadsPostLink(safeUrl, loadedTab?.url || '')) {
-      await chrome.tabs.remove(tab.id);
       return {
         status: 'expired',
         reason: 'redirected'
       };
     }
     const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId: tabId },
       func: extractPostInfoFromPage,
       args: [safeUrl]
     });
-    await chrome.tabs.remove(tab.id);
     if (results && results[0] && results[0].result) {
       return results[0].result;
     }
     return null;
   } catch (err) {
-    console.error('[Dashboard] fetchPostInfoViaTab 錯誤:', err);
-    if (tab && tab.id) {
-      try {
-        await chrome.tabs.remove(tab.id);
-      } catch (e) { }
-    }
+    console.error('[Dashboard] fetchPostInfoWithReusableTab 錯誤:', err);
     return null;
   }
 }
-function waitForTabLoad(tabId) {
+function waitForTabNavigation(tabId, timeoutMs = 4500) {
   return new Promise((resolve) => {
+    let resolved = false;
     const timeout = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(listener);
-      resolve();
-    }, 8000);
+      if (!resolved) {
+        resolved = true;
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve(false);
+      }
+    }, timeoutMs);
     const listener = (updatedTabId, changeInfo) => {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
-        clearTimeout(timeout);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          chrome.tabs.onUpdated.removeListener(listener);
+          resolve(true);
+        }
       }
     };
     chrome.tabs.onUpdated.addListener(listener);
@@ -892,6 +1044,11 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /^洞察報告$/,
       /^已儲存$/,
       /^追蹤中$/,
+      /^追蹤$/,
+      /^已追蹤$/,
+      /^(?:查看|隱藏)?翻譯$/i,
+      /^(?:See|Hide)?\s*translation$/i,
+      /^查看原文$/i,
       /^附帶原始貼文的回覆內容$/,
       /\d[\d,.]*\s*位粉絲\s*•\s*\d[\d,.]*\s*則串文/i,
       /\d[\d,.]*\s*followers\s*•\s*\d[\d,.]*\s*threads/i,
@@ -902,11 +1059,56 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
       /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
       /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
-      /^(?:剛剛|昨天|前天|yesterday|just now)$/i
+      /^(?:剛剛|昨天|前天|yesterday|just now)$/i,
+      /^\d+\s*[\/／]\s*\d+(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?$/i,
+      /^\d+\s*(?:of|之)\s*\d+$/i,
+      /^(?:圖片|相片|photo|image)\s*\d+\s*[\/／,，共of\s]+\d+(?:\s*張)?$/i
     ].some(pattern => pattern.test(normalizedText));
   }
+  function cleanExtractedPostContent(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+    let cleaned = rawText
+      .replace(/[\u00a0\u2000-\u200b\u2028\u2029]/g, ' ')
+      .replace(/(?:[\r\n\s])*\b\d+\s*[\r\n\s]*[\/／]\s*[\r\n\s]*\d+\b(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?\s*$/g, '')
+      .replace(/^\s*\b\d+\s*[\r\n\s]*[\/／]\s*[\r\n\s]*\d+\b(?:\s*[•·]\s*[\u4e00-\u9fa5\w]+)?(?:[\r\n\s])*/g, '')
+      .replace(/(?:[\r\n\s])*(?:查看|隱藏)?翻譯\s*$/g, '')
+      .replace(/(?:[\r\n\s])*(?:See|Hide)?\s*translation\s*$/gi, '')
+      .replace(/(?:[\r\n\s])*查看原文\s*$/g, '')
+      .trim();
+    const lines = cleaned.split(/\r?\n/);
+    const filteredLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) {
+        if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] !== '') {
+          filteredLines.push('');
+        }
+        continue;
+      }
+      if (isLikelyThreadsFallbackDescription(line)) {
+        continue;
+      }
+      if (/^[\/／]$/.test(line)) {
+        if (filteredLines.length > 0 && /^\d+$/.test(filteredLines[filteredLines.length - 1].trim())) {
+          filteredLines.pop();
+        }
+        if (i + 1 < lines.length && /^\d+$/.test(lines[i + 1].trim())) {
+          i++;
+        }
+        continue;
+      }
+      filteredLines.push(lines[i]);
+    }
+    while (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] === '') {
+      filteredLines.pop();
+    }
+    while (filteredLines.length > 0 && filteredLines[0] === '') {
+      filteredLines.shift();
+    }
+    return filteredLines.join('\n');
+  }
   return new Promise((resolve) => {
-    const maxWaitMs = 4000;
+    const maxWaitMs = 3500;
     const startTime = Date.now();
     const check = () => {
       const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
@@ -941,21 +1143,29 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         }
       }
       if (!content) {
-        const candidateContainers = Array.from(
+        let rawContainers = Array.from(
           sourceRoot.querySelectorAll(
-            'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
             'span[class*="xo1l8bm"][dir="auto"], ' +
             'span[class*="xi7mnp6"][dir="auto"], ' +
-            'div[class*="x1iorvi4"][dir="auto"], ' +
-            'div[dir="auto"]'
+            'div[class*="x1iorvi4"][dir="auto"]'
           )
-        ).filter(container => {
+        );
+        if (rawContainers.length === 0) {
+          rawContainers = Array.from(
+            sourceRoot.querySelectorAll(
+              'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
+              'div[dir="auto"]'
+            )
+          );
+        }
+        const candidateContainers = rawContainers.filter(container => {
           if (container.closest('h1') || container.closest('h2') || container.closest('h3') || container.closest('[aria-label="直欄標題"]')) return false;
-          if (container.closest('button') || container.closest('[role="button"]')) return false;
+          if (container.closest('button') || container.closest('[role="button"]') || container.querySelector('button') || container.querySelector('[role="button"]')) return false;
           if (container.closest('[contenteditable="true"]')) return false;
           if (container.closest('time') || container.querySelector('time')) return false;
           if (container.closest('a[href*="/post/"]') || container.closest('a[href*="/t/"]') || container.querySelector('a[href*="/post/"]') || container.querySelector('a[href*="/t/"]')) return false;
-          if (container.closest('a[href*="/@"]') && !container.closest('div[dir="auto"]')) return false;
+          if (container.closest('a[href*="/@"]')) return false;
+          if (container.closest('picture') || container.closest('video') || container.closest('canvas') || container.closest('[aria-roledescription="slide"]') || container.querySelector('img, video, picture, canvas')) return false;
           if (container.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
           let parent = container.parentElement;
           while (parent && parent !== sourceRoot) {
@@ -972,10 +1182,11 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         );
         const extractedTexts = topContainers
           .map(el => (el.innerText || el.textContent || '').trim())
+          .map(text => cleanExtractedPostContent(text))
           .filter(text => text && !isLikelyThreadsFallbackDescription(text))
           .filter((text, index, array) => array.indexOf(text) === index);
         if (extractedTexts.length > 0) {
-          content = extractedTexts.join('\n\n');
+          content = cleanExtractedPostContent(extractedTexts.join('\n\n'));
         }
       }
       if (!content) {
@@ -1057,7 +1268,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           }
         }
       }
-    }, 150);
+    }, 80);
   });
 }
 function buildThreadsEmbedCode(postLink) {
