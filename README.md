@@ -78,16 +78,18 @@
 - **安全儲存封裝**：內建 [safeStorageGet](./content.js#L20-L31) 與 [safeStorageSet](./content.js#L32-L43)，能自動偵測擴充功能上下文是否失效（[isExtensionAlive](./content.js#L13-L19)），避免拋出未捕獲例外（Context Invalidated 錯誤）。
 
 ### 2. 智慧過濾與中繼資料擷取
-- **UI 雜訊過濾**：自動識別並清除作者簡介、追蹤人數、串文數量以及平台引導文案（例如「查看 @... 參與的最新對話」、「尚無回覆」等）。支援多達 20 種以上的繁中與英文模式。
+- **原生排版與換行保留**：採用頂層容器 `innerText` 擷取演算法，完整保留段落換行（`\n`）與 `<br>` 標籤，解決傳統子節點拼接造成的換行遺失問題，同時確保同行的 `@提及` 與 `#標籤` 不被誤切為多行。
+- **UI 與時間雜訊過濾**：自動識別並清除作者簡介、追蹤人數、串文數量、相對發文時間（如「2天」、「1小時」）以及平台引導文案（例如「查看 @... 參與的最新對話」、「尚無回覆」等）。支援多達 25 種以上的繁中與英文模式。
+- **嚴格排除標頭連結**：深度過濾 `time` 標籤與 `a[href*="/post/"]` 貼文永久連結節點，杜絕發文時間被誤納入內文。
 - **回覆邊界隔離**：在首頁動態牆或個人檔案頁面擷取貼文時，若偵測到「回覆...」等邊界元素，會自動切斷並排除回覆區域，僅保留原始貼文內容。
-- **純圖片貼文偵測**：透過 [isLikelyImageOnlyDescription](./content.js#L157-L164) 智慧識別僅含圖片說明（如 `Photo by ... on ...`）的貼文，避免誤擷取無意義描述。
+- **純圖片貼文偵測**：透過 [isLikelyImageOnlyDescription](./content.js#L171-L178) 智慧識別僅含圖片說明（如 `Photo by ... on ...`）的貼文，避免誤擷取無意義描述。
 
 ### 3. 多維度欄位提取
 擴充功能會將每篇貼文拆解為結構化的欄位，以利後續的檢索與程式碼重複利用：
 
 | 欄位名稱 | 說明 |
 | :--- | :--- |
-| **貼文內文** | 經過去除中繼資料與 UI 雜訊後的純文字貼文內容 |
+| **貼文內文** | 經過去除中繼資料與 UI 雜訊後的純文字貼文內容（保留原始換行與段落結構） |
 | **作者帳號** | 提取發文者的帳號（`@username`） |
 | **作者主頁連結** | 連結至發文者的 Threads 個人主頁 |
 | **精確發布時間** | 包含 ISO 8601 格式時間與人類可讀的格式化時間 |
@@ -96,7 +98,7 @@
 | **嵌入程式碼** | 儲存 Threads 官方原生的 blockquote HTML 內嵌碼 |
 
 ### 4. 背景更新與失效狀態監控
-- **背景任務佇列**：使用 `chrome.tabs` 與 `chrome.scripting` 以最多 3 個併發任務開啟隱藏分頁，自動重新讀取貼文以同步最新內容。
+- **背景任務佇列**：使用 `chrome.tabs` 與 `chrome.scripting` 循序建立背景分頁，自動重新讀取貼文以同步最新內容與精確發布時間。
 - **智慧失效標記**：當背景更新發現以下狀況時，會自動將貼文標記為失效（`expired`）：
   - `redirected`：URL 中的貼文 ID 發生改變（表示原貼文已被轉導或刪除）。
   - `post-not-found`：在頁面載入 8 秒後仍找不到貼文主容器 `[data-pressable-container]`。
@@ -175,9 +177,21 @@ flowchart TD
 
 ## 核心技術邏輯與演算法
 
-### 1. 嵌入碼權重排名演算法 (Dialog Weight Scorer)
+### 1. 頂層文字容器排版擷取演算法 (Container InnerText Extractor)
 
-當 Threads 彈出嵌入對話框時，為了準確拿到包含 `blockquote` 的完整嵌入碼，[extractEmbedCodeFromDialog](./content.js#L327-L356) 對所有 `readonly` 的輸入框內容進行權重計分：
+為了避免將內文字串中的換行誤清理為單一空格，[content.js](./content.js#L69-L119)、[popup.js](./popup.js#L295-L335) 與 [dashboard.js](./dashboard.js#L940-L980) 採用頂層文字容器鎖定策略：
+
+1. **定位候選容器**：選取 `span[class*="xo1l8bm"][dir="auto"]`、`span[class*="xi7mnp6"][dir="auto"]` 及 `div[dir="auto"]` 等主內容區塊。
+2. **嚴格過濾時間與標頭節點**：
+   - 排除 `time` 標籤本身及其父容器（`closest('time') || querySelector('time')`）。
+   - 排除貼文固定網址標籤（`a[href*="/post/"]`、`a[href*="/t/"]`）。
+   - 排除純作者標頭連結（`a[href*="/@"]`）。
+3. **頂層去重 (Top-level Deduplication)**：僅保留未被其他候選容器包含的最頂層容器，防止子節點文字重複出現。
+4. **原生排版輸出**：直接調用 `innerText.trim()`，保留 `<br>` 與天然段落換行，最後以 `\n\n` 自然拼接各獨立段落。
+
+### 2. 嵌入碼權重排名演算法 (Dialog Weight Scorer)
+
+當 Threads 彈出嵌入對話框時，為了準確拿到包含 `blockquote` 的完整嵌入碼，[extractEmbedCodeFromDialog](./content.js#L341-L370) 對所有 `readonly` 的輸入框內容進行權重計分：
 
 ```javascript
 let score = value.length;
@@ -187,18 +201,18 @@ if (/threads\.com/i.test(value)) score += 100;
 ```
 最後挑選分數最高的輸入框內容作為最佳的 `embedCode`，從而避免誤擷取為純 URL 或其他非完整的嵌入程式碼。
 
-### 2. 程式碼區塊識別機制 (Code Block Detection)
+### 3. 程式碼區塊識別機制 (Code Block Detection)
 
-擴充功能透過 [extractCodeBlocks](./content.js#L551-L602) 組合多種機制來自動識別並提取貼文中的程式碼片段：
+擴充功能透過 [extractCodeBlocks](./content.js#L565-L615) 組合多種機制來自動識別並提取貼文中的程式碼片段：
 
 - **Markdown 圍欄程式碼區塊**：使用正規表達式 ``/```(\w*)\n([\s\S]*?)```/g`` 匹配。若有指定語言標記（例如 ````javascript ... ````），則自動解析為對應語言。
 - **Monospace 字型樣式區塊**：尋找 DOM 中包含 `style*="monospace"` 屬性的元素，將其文字內容去重後加入。
 - **HTML 程式碼標籤**：選取 `pre` 或 `code` 元素，並過濾長度大於 5 個字元的內容。
 - **行內程式碼**：使用 ``/`([^`\n]{2,})`/g`` 正規表達式提取所有行內程式碼，並將其合併為 `inline` 類型。
 
-### 3. 背景佇列控制 (Background Queue Control)
+### 4. 背景佇列控制 (Background Queue Control)
 
-當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [popup.js](./popup.js#L69-L143) 與 [dashboard.js](./dashboard.js#L729-L789) 中限制為一篇一篇循序（Sequential）更新。更新的先後順序與範圍會依照目前畫面上已套用的篩選與排序結果（即 `filteredArticles`）進行。
+當用戶點擊「更新貼文資料」時，為了防止開啟過多靜默分頁造成系統效能低落或觸發 Threads 流量限制，系統在 [popup.js](./popup.js#L69-L130) 與 [dashboard.js](./dashboard.js#L729-L789) 中限制為一篇一篇循序（Sequential）更新。更新的先後順序與範圍會依照目前畫面上已套用的篩選與排序結果（即 `filteredArticles`）進行。
 更新模組會以非同步迴圈依序處理任務佇列：
 
 ```javascript
@@ -207,9 +221,9 @@ for (const article of articlesNeedingUpdate) {
 }
 ```
 
-### 4. UI 雜訊智慧過濾機制 (UI Noise Filtering)
+### 5. UI 與時間雜訊智慧過濾機制 (UI Noise Filtering)
 
-為了獲取乾淨的貼文文字，[isLikelyThreadsFallbackDescription](./content.js#L109-L141) 提供了一系列的正規表達式過濾鏈，用以排除頁面中無關的 UI 輔助文字、粉絲數、瀏覽數、以及按鈕文字：
+為了獲取乾淨的貼文文字，[isLikelyThreadsFallbackDescription](./content.js#L120-L152) 提供了一系列的正規表達式過濾鏈，用以排除頁面中無關的 UI 輔助文字、相對時間標籤、粉絲數、瀏覽數、以及按鈕文字：
 
 ```javascript
 return [
@@ -241,12 +255,17 @@ return [
   /查看\s*@.+\s*參與的最新對話/i,
   /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
   /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+  /^\d+\s*(?:秒|分|分鐘|小時|天|週|年|s|m|h|d|w|y)(?:前)?$/i,
+  /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+  /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+  /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
+  /^(?:剛剛|昨天|前天|yesterday|just now)$/i
 ].some(pattern => pattern.test(normalizedText));
 ```
 
-### 5. 智慧標籤映射與自動偵測
+### 6. 智慧標籤映射與自動偵測
 
-除了直接擷取貼文中的標籤（Hashtag）之外，[extractTags](./content.js#L623-L669) 還會對貼文內文進行語境掃描，比對預設的程式語言與技術關鍵字（如 JavaScript, TypeScript, Python, React, Vue, CSS 等），將其自動轉換為對應的分類標籤，提升後續檢索的精確度。
+除了直接擷取貼文中的標籤（Hashtag）之外，[extractTags](./content.js#L637-L683) 還會對貼文內文進行語境掃描，比對預設的程式語言與技術關鍵字（如 JavaScript, TypeScript, Python, React, Vue, CSS 等），將其自動轉換為對應的分類標籤，提升後續檢索的精確度。
 
 ---
 
@@ -466,7 +485,12 @@ const posts = [
 
 ### [Unreleased]
 
+#### 新增
+- 實作頂層文字容器 `innerText` 排版擷取演算法，解決過往使用 `\s+` 壓平換行導致多行排版遺失的問題，完整保留段落換行、`<br>` 標籤及 Markdown 代碼區塊格式。
+
 #### 改善
+- 強化發文時間與標頭連結過濾：嚴格排除 `time` 標籤與 `a[href*="/post/"]`、`a[href*="/t/"]` 貼文固定網址節點，徹底杜絕發文時間誤納入內文。
+- 擴充時間雜訊正規表達式：支援辨識並剔除相對時間字串（如「2天」、「1小時」、「剛剛」、「昨天」等）。
 - 優化背景更新貼文資料的順序，使其依照目前畫面上的排序與篩選結果依序更新（[popup.js](./popup.js#L69) 與 [dashboard.js](./dashboard.js#L729)）。
 
 ### [2.0.5] - 2026-07-06

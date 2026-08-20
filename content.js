@@ -69,42 +69,49 @@ function isSinglePostPage() {
 function extractContentFromDOM(container) {
   const postPage0 = container.querySelector('[data-pagelet="threads_post_page_0"]');
   const searchRoot = postPage0 || container;
-  const selectors = [
-    'span[class*="xo1l8bm"][dir="auto"] > span',
-    'span[class*="xi7mnp6"][dir="auto"] > span',
-  ];
-  const allSpans = Array.from(searchRoot.querySelectorAll(selectors.join(', ')));
-  const replyBoundary = !postPage0
-    ? allSpans.find(s => /^回覆.+[…\.]{1,3}$/.test(s.textContent.trim()))
-    : null;
-  const beforeReply = replyBoundary
-    ? allSpans.filter(s =>
-      s.compareDocumentPosition(replyBoundary) & Node.DOCUMENT_POSITION_FOLLOWING
+  const candidateContainers = Array.from(
+    searchRoot.querySelectorAll(
+      'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
+      'span[class*="xo1l8bm"][dir="auto"], ' +
+      'span[class*="xi7mnp6"][dir="auto"], ' +
+      'div[class*="x1iorvi4"][dir="auto"], ' +
+      'div[dir="auto"]'
     )
-    : allSpans;
-  const candidates = beforeReply
-    .filter(span => !!span.closest('[data-pressable-container]'))
-    .filter(span => !span.closest('button'))
-    .filter(span => !span.closest('[role="button"]'))
-    .filter(span => !span.closest('h1') && !span.closest('[aria-label="直欄標題"]'))
-    .filter(span => {
-      if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) {
+  ).filter(el => {
+    if (el.closest('h1') || el.closest('h2') || el.closest('h3') || el.closest('[aria-label="直欄標題"]')) return false;
+    if (el.closest('button') || el.closest('[role="button"]')) return false;
+    if (el.closest('[contenteditable="true"]')) return false;
+    if (el.closest('time') || el.querySelector('time')) return false;
+    if (el.closest('a[href*="/post/"]') || el.closest('a[href*="/t/"]') || el.querySelector('a[href*="/post/"]') || el.querySelector('a[href*="/t/"]')) return false;
+    if (el.closest('a[href*="/@"]') && !el.closest('div[dir="auto"]')) return false;
+    if (el.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+    if (!postPage0 && !el.closest('[data-pressable-container]')) return false;
+    let parent = el.parentElement;
+    while (parent && parent !== searchRoot) {
+      const text = parent.textContent;
+      if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
         return false;
       }
-      let parent = span.parentElement;
-      while (parent && parent !== searchRoot) {
-        const text = parent.textContent;
-        if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
-          return false;
-        }
-        parent = parent.parentElement;
-      }
-      return true;
-    })
-    .filter(span => !isLikelyThreadsFallbackDescription(span.textContent.trim()))
-    .map(span => span.textContent.trim())
-    .filter(Boolean);
-  return candidates.join(' ');
+      parent = parent.parentElement;
+    }
+    return true;
+  });
+  const replyBoundary = !postPage0
+    ? candidateContainers.find(el => /^回覆.+[…\.]{1,3}$/.test(el.textContent.trim()))
+    : null;
+  const beforeReply = replyBoundary
+    ? candidateContainers.filter(el =>
+      el.compareDocumentPosition(replyBoundary) & Node.DOCUMENT_POSITION_FOLLOWING
+    )
+    : candidateContainers;
+  const topContainers = beforeReply.filter(el =>
+    !beforeReply.some(other => other !== el && other.contains(el))
+  );
+  const candidates = topContainers
+    .map(el => (el.innerText || el.textContent || '').trim())
+    .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+    .filter((text, index, array) => array.indexOf(text) === index);
+  return candidates.join('\n\n');
 }
 function isLikelyThreadsFallbackDescription(text) {
   const normalizedText = String(text).replace(/\s+/g, ' ').trim();
@@ -137,6 +144,11 @@ function isLikelyThreadsFallbackDescription(text) {
     /查看\s*@.+\s*參與的最新對話/i,
     /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
     /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+    /^\d+\s*(?:秒|分|分鐘|小時|天|週|年|s|m|h|d|w|y)(?:前)?$/i,
+    /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+    /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+    /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
+    /^(?:剛剛|昨天|前天|yesterday|just now)$/i
   ].some(pattern => pattern.test(normalizedText));
 }
 function extractContentFromMeta() {

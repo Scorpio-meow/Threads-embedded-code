@@ -251,6 +251,11 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /查看\s*@.+\s*參與的最新對話/i,
       /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i,
       /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+      /^\d+\s*(?:秒|分|分鐘|小時|天|週|年|s|m|h|d|w|y)(?:前)?$/i,
+      /^\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+      /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日$/i,
+      /^[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?$/i,
+      /^(?:剛剛|昨天|前天|yesterday|just now)$/i
     ].some(pattern => pattern.test(normalizedText));
   }
   return new Promise((resolve) => {
@@ -290,55 +295,41 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         }
       }
       if (!content) {
-        const contentSpans = sourceRoot.querySelectorAll('span[class*="xo1l8bm"][dir="auto"] > span');
-        if (contentSpans.length > 0) {
-          content = Array.from(contentSpans)
-            .filter(span => !span.closest('h1'))
-            .filter(span => !span.closest('button'))
-            .filter(span => !span.closest('[role="button"]'))
-            .filter(span => !span.closest('[contenteditable="true"]'))
-            .filter(span => {
-              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
-              let parent = span.parentElement;
-              while (parent && parent !== sourceRoot) {
-                const text = parent.textContent;
-                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
-                  return false;
-                }
-                parent = parent.parentElement;
-              }
-              return true;
-            })
-            .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
-            .filter(text => text && !isLikelyThreadsFallbackDescription(text))
-            .filter((text, index, array) => array.indexOf(text) === index)
-            .join('\n');
-        }
-      }
-      if (!content) {
-        const xi7Spans = sourceRoot.querySelectorAll('span[class*="xi7mnp6"][dir="auto"] > span');
-        if (xi7Spans.length > 0) {
-          content = Array.from(xi7Spans)
-            .filter(span => !span.closest('h1'))
-            .filter(span => !span.closest('button'))
-            .filter(span => !span.closest('[role="button"]'))
-            .filter(span => !span.closest('[contenteditable="true"]'))
-            .filter(span => {
-              if (span.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
-              let parent = span.parentElement;
-              while (parent && parent !== sourceRoot) {
-                const text = parent.textContent;
-                if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
-                  return false;
-                }
-                parent = parent.parentElement;
-              }
-              return true;
-            })
-            .map(span => (span.innerText || span.textContent || '').replace(/\s+/g, ' ').trim())
-            .filter(text => text && !isLikelyThreadsFallbackDescription(text))
-            .filter((text, index, array) => array.indexOf(text) === index)
-            .join('\n');
+        const candidateContainers = Array.from(
+          sourceRoot.querySelectorAll(
+            'div[data-pagelet="threads_post_page_0"] div[dir="auto"], ' +
+            'span[class*="xo1l8bm"][dir="auto"], ' +
+            'span[class*="xi7mnp6"][dir="auto"], ' +
+            'div[class*="x1iorvi4"][dir="auto"], ' +
+            'div[dir="auto"]'
+          )
+        ).filter(container => {
+          if (container.closest('h1') || container.closest('h2') || container.closest('h3') || container.closest('[aria-label="直欄標題"]')) return false;
+          if (container.closest('button') || container.closest('[role="button"]')) return false;
+          if (container.closest('[contenteditable="true"]')) return false;
+          if (container.closest('time') || container.querySelector('time')) return false;
+          if (container.closest('a[href*="/post/"]') || container.closest('a[href*="/t/"]') || container.querySelector('a[href*="/post/"]') || container.querySelector('a[href*="/t/"]')) return false;
+          if (container.closest('a[href*="/@"]') && !container.closest('div[dir="auto"]')) return false;
+          if (container.closest('.x6s0dn4.xmixu3c.x78zum5.xsag5q8.x1y1aw1k')) return false;
+          let parent = container.parentElement;
+          while (parent && parent !== sourceRoot) {
+            const text = parent.textContent;
+            if (text.includes('在貼文中提及') && text.includes('@meta.ai') && text.includes('即可在這裡獲得解答')) {
+              return false;
+            }
+            parent = parent.parentElement;
+          }
+          return true;
+        });
+        const topContainers = candidateContainers.filter(el =>
+          !candidateContainers.some(other => other !== el && other.contains(el))
+        );
+        const extractedTexts = topContainers
+          .map(el => (el.innerText || el.textContent || '').trim())
+          .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+          .filter((text, index, array) => array.indexOf(text) === index);
+        if (extractedTexts.length > 0) {
+          content = extractedTexts.join('\n\n');
         }
       }
       if (!content) {
