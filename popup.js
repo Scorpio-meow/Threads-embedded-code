@@ -452,24 +452,6 @@ function renderArticles() {
       statusBadge.style.marginTop = '0';
       card.appendChild(statusBadge);
     }
-    if (article.embedCode) {
-      const embedWrapper = document.createElement('div');
-      embedWrapper.className = 'embed-snippet';
-      const pre = document.createElement('pre');
-      pre.style.margin = '0';
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.style.overflowWrap = 'anywhere';
-      pre.style.wordBreak = 'break-word';
-      pre.style.maxWidth = '100%';
-      pre.style.boxSizing = 'border-box';
-      pre.style.overflowX = 'auto';
-      const code = document.createElement('code');
-      const embedText = (article.embedCode || '').substring(0, 300) + ((article.embedCode || '').length > 300 ? '\n...' : '');
-      code.textContent = embedText;
-      pre.appendChild(code);
-      embedWrapper.appendChild(pre);
-      card.appendChild(embedWrapper);
-    }
     if (article.tags && article.tags.length > 0) {
       const tagsContainer = document.createElement('div');
       tagsContainer.className = 'tags';

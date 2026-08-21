@@ -833,63 +833,6 @@ body {
     border: 1px solid rgba(220, 38, 38, 0.16);
 }
 
-.embed-section {
-    border: 1px solid var(--panel-border);
-    background: linear-gradient(180deg, #fff, #f8fafc);
-    border-radius: 14px;
-    overflow: hidden;
-}
-
-.embed-toggle {
-    width: 100%;
-    background: transparent;
-    border: none;
-    padding: 10px 12px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 700;
-    text-align: left;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all var(--transition-speed);
-}
-
-.embed-toggle:hover {
-    background: rgba(37, 99, 235, 0.05);
-    color: var(--text-primary);
-}
-
-.embed-toggle svg {
-    transition: transform var(--transition-speed);
-}
-
-.embed-toggle.active svg {
-    transform: rotate(180deg);
-}
-
-.embed-content {
-    padding: 12px;
-    border-top: 1px solid var(--panel-border);
-    display: none;
-}
-
-.embed-content.active {
-    display: block;
-}
-
-.embed-content pre {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-secondary);
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 120px;
-    overflow-y: auto;
-}
-
 .code-blocks {
     display: flex;
     flex-direction: column;
