@@ -86,7 +86,7 @@ function extractContentFromDOM(container) {
   }
   const candidateContainers = rawContainers.filter(el => {
     if (el.closest('h1') || el.closest('h2') || el.closest('h3') || el.closest('[aria-label="直欄標題"]')) return false;
-    if (el.closest('button') || el.closest('[role="button"]') || el.querySelector('button') || el.querySelector('[role="button"]')) return false;
+    if (el.closest('button') || el.closest('[role="button"]')) return false;
     if (el.closest('[contenteditable="true"]')) return false;
     if (el.closest('time') || el.querySelector('time')) return false;
     if (el.closest('a[href*="/post/"]') || el.closest('a[href*="/t/"]') || el.querySelector('a[href*="/post/"]') || el.querySelector('a[href*="/t/"]')) return false;
@@ -116,7 +116,22 @@ function extractContentFromDOM(container) {
     !beforeReply.some(other => other !== el && other.contains(el))
   );
   const candidates = topContainers
-    .map(el => (el.innerText || el.textContent || '').trim())
+    .map(el => {
+      const clone = el.cloneNode(true);
+      const childButtons = clone.querySelectorAll('button, [role="button"]');
+      for (const btn of childButtons) {
+        const btnText = (btn.innerText || btn.textContent || '').trim();
+        if (
+          isLikelyThreadsFallbackDescription(btnText) ||
+          /^(?:查看|隱藏)?翻譯$/i.test(btnText) ||
+          /^(?:See|Hide)?\s*translation$/i.test(btnText) ||
+          /^查看原文$/i.test(btnText)
+        ) {
+          btn.remove();
+        }
+      }
+      return (clone.innerText || clone.textContent || '').trim();
+    })
     .map(text => cleanExtractedPostContent(text))
     .filter(text => text && !isLikelyThreadsFallbackDescription(text))
     .filter((text, index, array) => array.indexOf(text) === index);

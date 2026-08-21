@@ -1153,7 +1153,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         }
         const candidateContainers = rawContainers.filter(container => {
           if (container.closest('h1') || container.closest('h2') || container.closest('h3') || container.closest('[aria-label="直欄標題"]')) return false;
-          if (container.closest('button') || container.closest('[role="button"]') || container.querySelector('button') || container.querySelector('[role="button"]')) return false;
+          if (container.closest('button') || container.closest('[role="button"]')) return false;
           if (container.closest('[contenteditable="true"]')) return false;
           if (container.closest('time') || container.querySelector('time')) return false;
           if (container.closest('a[href*="/post/"]') || container.closest('a[href*="/t/"]') || container.querySelector('a[href*="/post/"]') || container.querySelector('a[href*="/t/"]')) return false;
@@ -1174,7 +1174,22 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           !candidateContainers.some(other => other !== el && other.contains(el))
         );
         const extractedTexts = topContainers
-          .map(el => (el.innerText || el.textContent || '').trim())
+          .map(el => {
+            const clone = el.cloneNode(true);
+            const childButtons = clone.querySelectorAll('button, [role="button"]');
+            for (const btn of childButtons) {
+              const btnText = (btn.innerText || btn.textContent || '').trim();
+              if (
+                isLikelyThreadsFallbackDescription(btnText) ||
+                /^(?:查看|隱藏)?翻譯$/i.test(btnText) ||
+                /^(?:See|Hide)?\s*translation$/i.test(btnText) ||
+                /^查看原文$/i.test(btnText)
+              ) {
+                btn.remove();
+              }
+            }
+            return (clone.innerText || clone.textContent || '').trim();
+          })
           .map(text => cleanExtractedPostContent(text))
           .filter(text => text && !isLikelyThreadsFallbackDescription(text))
           .filter((text, index, array) => array.indexOf(text) === index);
