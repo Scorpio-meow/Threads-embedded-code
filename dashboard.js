@@ -9,6 +9,10 @@ let isUpdatePaused = false;
 let cancelUpdateRequested = false;
 let confirmModalResolve = null;
 let importModalResolve = null;
+let currentPreviewIndex = -1;
+let currentPreviewArticle = null;
+let currentPreviewTab = 'embed';
+let currentPreviewDeviceWidth = '658px';
 document.addEventListener('DOMContentLoaded', async () => {
   await loadArticles();
   setupEventListeners();
@@ -199,6 +203,7 @@ function setupEventListeners() {
   document.getElementById('batchDeleteBtn').addEventListener('click', batchDeleteArticles);
 }
 function setupModalListeners() {
+  setupPreviewModalListeners();
   document.getElementById('modalCloseBtn').addEventListener('click', () => {
     closeConfirmModal(false);
   });
@@ -511,6 +516,16 @@ function renderArticles() {
     }
     const actions = document.createElement('div');
     actions.className = 'card-actions';
+    const previewBtn = document.createElement('button');
+    previewBtn.className = 'card-action-btn preview-btn';
+    previewBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      即時預覽
+    `;
+    previewBtn.addEventListener('click', () => {
+      openPreviewModal(article.id);
+    });
+    actions.appendChild(previewBtn);
     const viewBtn = document.createElement('a');
     viewBtn.className = 'card-action-btn primary';
     viewBtn.href = sanitizeUrl(article.postLink || '#');
@@ -1538,4 +1553,272 @@ function parseJsEmbedFile(content) {
     }
   }
   return articles;
+}
+function setupPreviewModalListeners() {
+  const previewModal = document.getElementById('previewModal');
+  const previewCloseBtn = document.getElementById('previewCloseBtn');
+  const previewPrevBtn = document.getElementById('previewPrevBtn');
+  const previewNextBtn = document.getElementById('previewNextBtn');
+  const previewCopyCodeBtn = document.getElementById('previewCopyCodeBtn');
+  const previewCopyEmbedBtn = document.getElementById('previewCopyEmbedBtn');
+  if (previewCloseBtn) {
+    previewCloseBtn.addEventListener('click', closePreviewModal);
+  }
+  if (previewPrevBtn) {
+    previewPrevBtn.addEventListener('click', () => navigatePreview(-1));
+  }
+  if (previewNextBtn) {
+    previewNextBtn.addEventListener('click', () => navigatePreview(1));
+  }
+  if (previewCopyCodeBtn) {
+    previewCopyCodeBtn.addEventListener('click', () => {
+      if (!currentPreviewArticle) return;
+      const codes = (currentPreviewArticle.codeBlocks || []).map(b => b.code).filter(Boolean).join('\n\n');
+      if (codes) {
+        copyTextToClipboard(codes, '已複製貼文內所有程式碼');
+      } else {
+        showToast('此貼文無程式碼區塊');
+      }
+    });
+  }
+  if (previewCopyEmbedBtn) {
+    previewCopyEmbedBtn.addEventListener('click', () => {
+      if (!currentPreviewArticle) return;
+      let blockquoteOnly = currentPreviewArticle.embedCode || buildThreadsEmbedCode(currentPreviewArticle.postLink);
+      let previous;
+      do {
+        previous = blockquoteOnly;
+        blockquoteOnly = blockquoteOnly.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '');
+      } while (blockquoteOnly !== previous);
+      blockquoteOnly = blockquoteOnly.trim();
+      if (blockquoteOnly) {
+        copyTextToClipboard(blockquoteOnly, '內嵌代碼已複製');
+      } else {
+        showToast('無內嵌代碼可複製');
+      }
+    });
+  }
+  document.querySelectorAll('.preview-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      const tabName = tabBtn.dataset.tab;
+      switchPreviewTab(tabName);
+    });
+  });
+  document.querySelectorAll('.device-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const width = btn.dataset.width;
+      setPreviewDeviceWidth(width);
+    });
+  });
+  if (previewModal) {
+    previewModal.addEventListener('click', (e) => {
+      if (e.target === previewModal) {
+        closePreviewModal();
+      }
+    });
+  }
+  window.addEventListener('message', (event) => {
+    if (!event.origin || (!event.origin.includes('threads.net') && !event.origin.includes('threads.com') && !event.origin.includes('instagram.com'))) return;
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (data) {
+        let targetHeight = 0;
+        if (data.type === 'MEASURE' && data.details && data.details.height) {
+          targetHeight = Number(data.details.height);
+        } else if (data.height) {
+          targetHeight = Number(data.height);
+        }
+        if (targetHeight > 150 && targetHeight < 4000) {
+          const iframe = document.getElementById('previewIframe');
+          if (iframe) {
+            iframe.style.height = `${targetHeight}px`;
+          }
+        }
+      }
+    } catch (e) { }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!previewModal || !previewModal.classList.contains('active')) return;
+    if (e.key === 'Escape') {
+      closePreviewModal();
+    } else if (e.key === 'ArrowLeft') {
+      navigatePreview(-1);
+    } else if (e.key === 'ArrowRight') {
+      navigatePreview(1);
+    }
+  });
+}
+function openPreviewModal(articleId) {
+  const index = filteredArticles.findIndex(a => a.id === articleId);
+  if (index === -1) {
+    const fallbackArticle = allArticles.find(a => a.id === articleId);
+    if (!fallbackArticle) return;
+    currentPreviewArticle = fallbackArticle;
+    currentPreviewIndex = 0;
+  } else {
+    currentPreviewIndex = index;
+    currentPreviewArticle = filteredArticles[index];
+  }
+  const modal = document.getElementById('previewModal');
+  if (!modal) return;
+  modal.classList.add('active');
+  setPreviewDeviceWidth(currentPreviewDeviceWidth);
+  renderPreviewModalContent();
+}
+function closePreviewModal() {
+  const modal = document.getElementById('previewModal');
+  if (modal) modal.classList.remove('active');
+  const iframe = document.getElementById('previewIframe');
+  if (iframe) {
+    iframe.src = 'about:blank';
+  }
+  currentPreviewArticle = null;
+  currentPreviewIndex = -1;
+}
+function navigatePreview(direction) {
+  if (filteredArticles.length === 0) return;
+  let nextIndex = currentPreviewIndex + direction;
+  if (nextIndex < 0) nextIndex = 0;
+  if (nextIndex >= filteredArticles.length) nextIndex = filteredArticles.length - 1;
+  if (nextIndex === currentPreviewIndex) return;
+  currentPreviewIndex = nextIndex;
+  currentPreviewArticle = filteredArticles[currentPreviewIndex];
+  renderPreviewModalContent();
+}
+function switchPreviewTab(tabName) {
+  currentPreviewTab = tabName;
+  document.querySelectorAll('.preview-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabName);
+  });
+  const deviceSwitcher = document.getElementById('previewDeviceSwitcher');
+  if (deviceSwitcher) {
+    deviceSwitcher.style.display = (tabName === 'embed') ? 'flex' : 'none';
+  }
+  document.querySelectorAll('.preview-pane').forEach(p => p.classList.remove('active'));
+  if (tabName === 'embed') {
+    document.getElementById('paneEmbed')?.classList.add('active');
+  } else if (tabName === 'raw') {
+    document.getElementById('paneRaw')?.classList.add('active');
+  }
+  renderPreviewModalContent();
+}
+function setPreviewDeviceWidth(width) {
+  currentPreviewDeviceWidth = width;
+  document.querySelectorAll('.device-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.width === width);
+  });
+  const wrapper = document.getElementById('previewIframeWrapper');
+  if (wrapper) {
+    if (width === '100%') {
+      wrapper.style.width = '100%';
+      wrapper.style.maxWidth = '100%';
+    } else {
+      wrapper.style.width = width;
+      wrapper.style.maxWidth = '100%';
+    }
+  }
+}
+function renderPreviewModalContent() {
+  if (!currentPreviewArticle) return;
+  const article = currentPreviewArticle;
+  const totalCount = filteredArticles.length || 1;
+  const displayIndex = currentPreviewIndex >= 0 ? currentPreviewIndex + 1 : 1;
+  const authorTitle = document.getElementById('previewAuthorTitle');
+  if (authorTitle) authorTitle.textContent = article.author ? `${article.author}` : '未填寫作者';
+  const counter = document.getElementById('previewIndexCounter');
+  if (counter) counter.textContent = `第 ${displayIndex} / ${totalCount} 篇`;
+  const prevBtn = document.getElementById('previewPrevBtn');
+  if (prevBtn) prevBtn.disabled = currentPreviewIndex <= 0;
+  const nextBtn = document.getElementById('previewNextBtn');
+  if (nextBtn) nextBtn.disabled = currentPreviewIndex >= totalCount - 1;
+  const openLink = document.getElementById('previewOpenThreadsLink');
+  if (openLink) openLink.href = sanitizeUrl(article.postLink || '#');
+  const postTime = document.getElementById('previewPostTime');
+  if (postTime) {
+    const postTimeStr = article.timestampTitle || (article.timestamp ? formatTime(article.timestamp) : '未知');
+    const savedTimeStr = article.savedAt ? formatTime(article.savedAt) : '未知';
+    postTime.textContent = `發布：${postTimeStr} ｜ 儲存：${savedTimeStr}`;
+  }
+  if (currentPreviewTab === 'embed') {
+    renderEmbedPane(article);
+  } else if (currentPreviewTab === 'raw') {
+    renderRawPane(article);
+  }
+}
+function getThreadsEmbedUrl(postLink) {
+  if (!postLink) return '';
+  const cleanLink = postLink.split('?')[0].replace(/\/+$/, '');
+  const userPostMatch = cleanLink.match(/(?:threads\.net|threads\.com)\/@([^\/]+)\/post\/([^\/\?]+)/i);
+  if (userPostMatch) {
+    return `https://www.threads.net/@${userPostMatch[1]}/post/${userPostMatch[2]}/embed`;
+  }
+  const tMatch = cleanLink.match(/(?:threads\.net|threads\.com)\/t\/([^\/\?]+)/i);
+  if (tMatch) {
+    return `https://www.threads.net/t/${tMatch[1]}/embed`;
+  }
+  return `${cleanLink}/embed`;
+}
+function renderEmbedPane(article) {
+  const iframe = document.getElementById('previewIframe');
+  const spinner = document.getElementById('previewLoadingSpinner');
+  if (!iframe) return;
+  if (spinner) spinner.style.opacity = '1';
+  iframe.style.height = '540px';
+  const embedUrl = getThreadsEmbedUrl(article.postLink);
+  if (embedUrl) {
+    iframe.src = embedUrl;
+    iframe.onload = () => {
+      if (spinner) spinner.style.opacity = '0';
+    };
+    iframe.onerror = () => {
+      if (spinner) spinner.style.opacity = '0';
+    };
+  } else {
+    iframe.src = 'about:blank';
+    if (spinner) spinner.style.opacity = '0';
+  }
+  setTimeout(() => {
+    if (spinner) spinner.style.opacity = '0';
+  }, 1500);
+}
+function renderRawPane(article) {
+  const container = document.getElementById('previewRawView');
+  if (!container) return;
+  container.innerHTML = '';
+  const embedCard = document.createElement('div');
+  embedCard.className = 'preview-raw-card';
+  embedCard.innerHTML = `
+    <h5>Threads 內嵌 HTML 代碼 (Embed Code)</h5>
+    <div class="preview-raw-content"><code>${escapeHtml(article.embedCode || buildThreadsEmbedCode(article.postLink))}</code></div>
+  `;
+  container.appendChild(embedCard);
+  const metaCard = document.createElement('div');
+  metaCard.className = 'preview-raw-card';
+  const tagsStr = (article.tags || []).join(', ') || '無';
+  const codeBlocksCount = (article.codeBlocks || []).length;
+  metaCard.innerHTML = `
+    <h5>貼文中繼資料 (Post Metadata)</h5>
+    <table class="preview-meta-table">
+      <tbody>
+        <tr><td>文章識別碼 (ID)</td><td><code>${article.id || 'N/A'}</code></td></tr>
+        <tr><td>作者帳號</td><td>${article.author || 'N/A'}</td></tr>
+        <tr><td>貼文連結</td><td><a href="${sanitizeUrl(article.postLink || '#')}" target="_blank" rel="noopener noreferrer">${article.postLink || 'N/A'}</a></td></tr>
+        <tr><td>發文時間</td><td>${article.timestampTitle || article.timestamp || 'N/A'}</td></tr>
+        <tr><td>儲存時間</td><td>${article.savedAt || 'N/A'}</td></tr>
+        <tr><td>標籤清單</td><td>${tagsStr}</td></tr>
+        <tr><td>程式碼區塊數</td><td>${codeBlocksCount} 個</td></tr>
+        <tr><td>貼文狀態</td><td>${article.status || 'active'}${article.expiredReason ? ` (${article.expiredReason})` : ''}</td></tr>
+      </tbody>
+    </table>
+  `;
+  container.appendChild(metaCard);
+}
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

@@ -10,8 +10,13 @@
   ],
   "host_permissions": [
     "https://www.threads.com/*",
-    "https://threads.com/*"
+    "https://threads.com/*",
+    "https://www.threads.net/*",
+    "https://threads.net/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://www.threads.com https://www.threads.net https://*.threads.com https://*.threads.net;"
+  },
   "content_scripts": [
     {
       "matches": [

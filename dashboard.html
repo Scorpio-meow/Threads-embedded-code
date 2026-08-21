@@ -201,6 +201,90 @@
       </div>
     </div>
   </div>
+  <div class="modal-overlay preview-modal-overlay" id="previewModal">
+    <div class="modal-container preview-modal-container">
+      <div class="preview-modal-header">
+        <div class="preview-header-left">
+          <div class="preview-badge">即時預覽</div>
+          <h4 id="previewAuthorTitle">@author</h4>
+          <span class="preview-counter" id="previewIndexCounter">第 1 / 1 篇</span>
+        </div>
+        <div class="preview-header-nav">
+          <button class="preview-nav-btn" id="previewPrevBtn" title="上一篇 (鍵盤 ←)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button class="preview-nav-btn" id="previewNextBtn" title="下一篇 (鍵盤 →)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+          <button class="modal-close-btn preview-close-btn" id="previewCloseBtn" title="關閉 (ESC)">&times;</button>
+        </div>
+      </div>
+      <div class="preview-toolbar">
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-tab="embed">原生內嵌預覽</button>
+          <button class="preview-tab" data-tab="raw">原始碼與中繼資料</button>
+        </div>
+        <div class="preview-device-switcher" id="previewDeviceSwitcher">
+          <button class="device-btn active" data-width="658px" title="Threads 官方預設寬度 (658px)">官方預設 (658px)</button>
+          <button class="device-btn" data-width="480px" title="平板 (480px)">平板 (480px)</button>
+          <button class="device-btn" data-width="320px" title="手機 / 官方最小寬度 (320px)">手機 (320px)</button>
+          <button class="device-btn" data-width="100%" title="自適應 100%">自適應 (100%)</button>
+        </div>
+      </div>
+      <div class="preview-modal-body">
+        <div class="preview-pane active" id="paneEmbed">
+          <div class="preview-iframe-wrapper" id="previewIframeWrapper">
+            <div class="preview-loading-spinner" id="previewLoadingSpinner">
+              <div class="spinner"></div>
+              <span>正在載入 Threads 原生內嵌元件...</span>
+            </div>
+            <iframe id="previewIframe" class="preview-iframe" src="about:blank" title="Threads 貼文即時預覽框架"></iframe>
+          </div>
+        </div>
+        <div class="preview-pane" id="paneRaw">
+          <div class="preview-raw-view" id="previewRawView"></div>
+        </div>
+      </div>
+      <div class="preview-modal-footer">
+        <div class="preview-footer-left">
+          <span class="preview-post-time" id="previewPostTime"></span>
+        </div>
+        <div class="preview-footer-actions">
+          <button class="preview-action-btn secondary" id="previewCopyCodeBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            複製程式碼
+          </button>
+          <button class="preview-action-btn secondary" id="previewCopyEmbedBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            複製內嵌代碼
+          </button>
+          <a class="preview-action-btn primary" id="previewOpenThreadsLink" target="_blank" rel="noopener noreferrer">
+            <span>在 Threads 開啟原文</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="toast-container" id="toastContainer"></div>
   <input type="file" id="importFileInput" accept=".js,.json" class="is-hidden" title="匯入資料檔案">
   <script src="dashboard.js"></script>

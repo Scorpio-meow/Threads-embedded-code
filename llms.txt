@@ -1,0 +1,187 @@
+# Threads 程式碼儲存器 (Threads Code Saver)
+> 基於 Google Chrome Manifest V3 的輕量純前端瀏覽器擴充功能，用於自動攔截、深度清洗、即時預覽、管理與多格式匯出 Threads 貼文中的可嵌入程式碼與結構化中繼資料。
+
+## 專案核心資訊 (Core Metadata)
+- 專案名稱: Threads 程式碼儲存器 (Threads Code Saver)
+- 當前版本: 2.0.5
+- 規範標準: Google Chrome Extensions Manifest V3
+- 技術棧: 純原生 JavaScript (ES6+), HTML5, CSS3 Variables (零外部依賴、零編譯建置步驟)
+- 資料儲存: 本機儲存庫 `chrome.storage.local` (預設上限 10MB，完全離線隱私安全)
+- 原始碼專案庫: https://github.com/Scorpio-meow/threads-embedded-code
+- 關聯展示專案: https://github.com/Scorpio-meow/Threads-Featured-Posts (接收本擴充功能匯出的精選貼文資料作為資料來源)
+
+## 核心檔案路徑與職責 (Core Files)
+- [manifest.json](./manifest.json): 擴充功能清單設定檔，聲明 Manifest V3 規格、權限宣告 (storage, tabs, scripting)、主機比對規則與嚴格 CSP 配置。
+- [content.js](./content.js): Content Script 核心腳本，負責 Threads 網頁 DOM 變更監聽、嵌入碼對話框權重評分、頂層文字容器排版擷取與 25+ 種 UI/時間雜訊清洗。
+- [styles.css](./styles.css): 注入至 Threads 網頁的通知提示外觀樣式表。
+- [popup.html](./popup.html): 瀏覽器工具列 400px 彈出面板 HTML 結構。
+- [popup.css](./popup.css): 工具列彈出面板樣式表 (深色主題、響應式清單)。
+- [popup.js](./popup.js): 工具列彈出面板邏輯，支援即時搜尋、多維度排序、類型篩選、單筆維護與匯出。
+- [dashboard.html](./dashboard.html): 全功能管理控制面板 HTML，包含即時預覽彈窗、統計看板、批次操作工具列。
+- [dashboard.css](./dashboard.css): 控制面板樣式表，包含 Grid 卡片佈局、多裝置寬度切換器與動畫效果。
+- [dashboard.js](./dashboard.js): 控制面板核心邏輯，包含即時預覽控制器 (Live Preview Modal)、循序非同步更新佇列 (支援暫停/取消)、標籤/作者統計雲、批次操作與自訂確認 Modal。
+- [favicon.png](./favicon.png): 擴充功能圖示資源 (128x128)。
+- [README.md](./README.md): 完整繁體中文技術說明文件，包含詳細演算法、Mermaid 架構流程圖、資料 Schema、操作指南與 FAQ。
+- [llms.txt](./llms.txt): 本檔案，專供 AI 代理與 RAG 系統快速檢索與結構化理解之規格說明。
+
+## 資料模型與 Schema (Data Models)
+所有貼文均以 `SavedArticle` 物件陣列形式儲存於 `chrome.storage.local` 的 `savedArticles` 鍵中。
+
+### SavedArticle 介面
+```typescript
+interface SavedArticle {
+  /** 唯一主鍵識別碼 (格式: embed_[timestamp]_[random] 或 code_[timestamp]_[random]) */
+  id: string;
+
+  /** 貼文原始 URL，作為去重與更新的主鍵 */
+  postLink: string;
+
+  /** Threads 官方原生 <blockquote> HTML 內嵌碼 */
+  embedCode: string;
+
+  /** 發布時間 (ISO 8601 標準格式) */
+  timestamp: string;
+
+  /** 格式化發布時間標題 (例如: "2026年5月29日 上午10:00") */
+  timestampTitle: string;
+
+  /** 儲存至本機資料庫的時間 (ISO 8601) */
+  savedAt: string;
+
+  /** 貼文純文字內容 (已保留段落換行並清除 UI 雜訊) */
+  content: string;
+
+  /** 發文者帳號 (包含 @ 前綴，如 "@username") */
+  author: string;
+
+  /** 發文者 Threads 個人首頁網址 */
+  authorUrl: string;
+
+  /** 分類標籤清單 (包含 Hashtag 與技術關鍵字) */
+  tags: string[];
+
+  /** 解析出的程式碼區塊列表 */
+  codeBlocks: CodeBlock[];
+
+  /** 程式碼區塊總數 */
+  codeCount: number;
+
+  /** 貼文存活狀態 */
+  status: 'active' | 'expired';
+
+  /** 最後一次背景更新時間 (ISO 8601) */
+  lastUpdated?: string;
+
+  /** 標記為失效的時間 (ISO 8601) */
+  expiredAt?: string;
+
+  /** 失效具體原因 */
+  expiredReason?: 'redirected' | 'post-not-found' | 'fallback-summary';
+
+  /** 最後一次檢查存活狀態的時間 (ISO 8601) */
+  expiredCheckedAt?: string;
+
+  /** 發布時間戳記最後更新時間 (ISO 8601) */
+  timestampUpdatedAt?: string;
+
+  /** 匯入來源標記 */
+  importedFrom?: 'full-data-file' | 'js-embed-file';
+}
+```
+
+### CodeBlock 介面
+```typescript
+interface CodeBlock {
+  /** 程式碼來源類型 */
+  type: 'markdown_block' | 'html_tag' | 'monospace' | 'inline';
+
+  /** 程式碼文字內容 */
+  code: string;
+
+  /** 推斷之程式語言 (無法辨識時為 "unknown") */
+  language: string;
+
+  /** 在該貼文中的順序索引 (從 1 起算) */
+  index: number;
+
+  /** 行內代碼總數 (僅 inline 類型有效) */
+  count?: number;
+}
+```
+
+## 核心演算法與技術特性 (Key Concepts & Algorithms)
+
+### 1. 頂層文字容器排版擷取演算法 (DOM Content Extraction)
+- 採用頂層容器過濾策略，鎖定 `span[class*="xo1l8bm"][dir="auto"]` 與 `div[class*="x1iorvi4"][dir="auto"]` 節點。
+- 排除 `time` 標籤、`a[href*="/post/"]` 固定網址、`a[href*="/@"]` 作者標頭連結及 Meta AI 文案。
+- 頂層去重後調用 `innerText.trim()`，完整保留段落換行與 `<br>`，杜絕空白壓縮問題。
+
+### 2. 對話框嵌入碼權重計分演算法 (Embed Code Scorer)
+- 掃描對話框中的所有唯讀輸入框，評分機制：基礎長度分數 + 包含 `data-text-post-permalink` (加 1000 分) + 包含 `<blockquote` (加 500 分) + 包含 `threads.com` (加 100 分)。
+- 選取最高分者作為最佳嵌入碼，確保 100% 提取完整 blockquote。
+
+### 3. 多模態程式碼區塊偵測 (Code Block Identification)
+- Markdown 圍欄代碼區塊：匹配 ``/```(\w*)\n([\s\S]*?)```/g`` 並萃取語法宣告。
+- HTML pre/code 標籤：選取字元數大於 5 的有效內容。
+- 等寬字型區塊：選取 `style*="monospace"` 節點。
+- 行內代碼：匹配 ``/`([^`\n]{2,})`/g``。
+
+### 4. 25+ 模式 UI 雜訊與時間過濾鏈 (Noise Filtering)
+- 正規表達式鏈式清洗，過濾翻譯按鈕、輪播計數 (如 `1/5`)、相對時間 (如「2天」、「1小時」、「剛剛」、「yesterday」)、粉絲人數、串文數量及導覽項目。
+
+### 5. 控制面板即時預覽 (Live Preview Protocol)
+- 原生內嵌 Frame 與原始碼雙分頁。
+- 支援 658px (官方標準)、480px (平板)、320px (手機) 與 100% 自適應切換。
+- 鍵盤導航：`ESC` 關閉、`←` / `→` 切換貼文。
+- 跨來源通訊：監聽 `window.message` 動態解析 `type: 'MEASURE'` 事件自動調節 Frame 高度。
+
+### 6. 背景循序同步與失效監控 (Sequential Update Queue)
+- 依畫面當前排序建立佇列，以單一工作分頁循序執行同步，支援「暫停/繼續」與「取消」。
+- 偵測網址重導向（`redirected`）或載入超時（8 秒未找到容器）時自動標記為 `expired`；貼文恢復可存取時自動回復為 `active`。
+
+## 匯出與匯入規範 (Export & Import Specifications)
+
+### 匯出格式
+1. **簡易版嵌入碼 (Embed Only)**: `threads-embed-codes-YYYY-MM-DD.js`
+   ```javascript
+   const posts = [
+       '<blockquote class="text-post-media" data-text-post-permalink="...">...</blockquote>'
+   ];
+   ```
+2. **精選貼文資料 (Featured Data)**: `threads-featured-data-YYYY-MM-DD.js` (供 Threads-Featured-Posts 使用，author 無 @ 前綴)
+   ```javascript
+   const posts = [
+       {
+           "embedCode": "...",
+           "postLink": "https://www.threads.com/@user/post/...",
+           "author": "user",
+           "content": "...",
+           "tags": ["JavaScript"]
+       }
+   ];
+   ```
+3. **完整版備份資料 (Full Data)**: `threads-full-data-YYYY-MM-DD.js` (完整 SavedArticle 欄位)
+   ```javascript
+   const posts = [
+       {
+           "embedCode": "...",
+           "postLink": "https://www.threads.com/@user/post/...",
+           "author": "@user",
+           "content": "...",
+           "timestamp": "2026-05-29T02:00:00.000Z",
+           "timestampTitle": "2026年5月29日 上午10:00",
+           "savedAt": "2026-05-29T02:10:00.000Z",
+           "tags": ["JavaScript"],
+           "status": "active"
+       }
+   ];
+   ```
+
+### 匯入機制
+- 三階段解析管線：`JSON.parse` -> `new Function` 動態語法樹求值 -> 正規表達式抽取。
+- 支援合併資料 (Merge，自動去重) 與完全覆寫 (Overwrite)。
+
+## 權限宣告與 CSP 安全規範
+- Permissions: `storage`, `tabs`, `scripting`
+- Host Permissions: `https://www.threads.com/*`, `https://threads.com/*`, `https://www.threads.net/*`, `https://threads.net/*`
+- CSP: `script-src 'self'; object-src 'self'; frame-src https://www.threads.com https://www.threads.net https://*.threads.com https://*.threads.net;` (嚴格禁止外部 CDN 與行內事件/樣式)
