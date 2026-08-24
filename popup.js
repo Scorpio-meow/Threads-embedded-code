@@ -292,6 +292,8 @@ function matchesFilter(article) {
       return (article.tags || []).some(tag =>
         (tag || '').toLowerCase() === currentFilterValue.toLowerCase()
       );
+    case 'noContent':
+      return !article.content || !article.content.trim();
     case 'noTimestamp':
       if (!article.timestamp) return true;
       if (!article.timestampTitle) {
