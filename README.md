@@ -518,8 +518,20 @@ for (let i = 0; i < queue.length; i++) {
 為配合 Threads 原生內嵌元件的高度動態變化，儀表板監聽來自 `threads.net` 與 `threads.com` 的 `window.message` 事件：
 
 ```javascript
+function isAllowedEmbedOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname.toLowerCase();
+    const allowedDomains = ['threads.net', 'threads.com', 'instagram.com'];
+    return allowedDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+  } catch (_) {
+    return false;
+  }
+}
+
 window.addEventListener('message', (event) => {
-  if (!event.origin.includes('threads.net') && !event.origin.includes('threads.com')) return;
+  if (!isAllowedEmbedOrigin(event.origin)) return;
   try {
     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     if (data && (data.type === 'MEASURE' || data.height)) {

@@ -1631,6 +1631,17 @@ function parseJsEmbedFile(content) {
   }
   return articles;
 }
+function isAllowedEmbedOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname.toLowerCase();
+    const allowedDomains = ['threads.net', 'threads.com', 'instagram.com'];
+    return allowedDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+  } catch (_) {
+    return false;
+  }
+}
 function setupPreviewModalListeners() {
   const previewModal = document.getElementById('previewModal');
   const previewCloseBtn = document.getElementById('previewCloseBtn');
@@ -1695,7 +1706,7 @@ function setupPreviewModalListeners() {
     });
   }
   window.addEventListener('message', (event) => {
-    if (!event.origin || (!event.origin.includes('threads.net') && !event.origin.includes('threads.com') && !event.origin.includes('instagram.com'))) return;
+    if (!isAllowedEmbedOrigin(event.origin)) return;
     try {
       const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
       if (data) {
@@ -1823,17 +1834,17 @@ function renderPreviewModalContent() {
   }
 }
 function getThreadsEmbedUrl(postLink) {
-  if (!postLink) return '';
+  if (!postLink || typeof postLink !== 'string') return '';
   const cleanLink = postLink.split('?')[0].replace(/\/+$/, '');
   const userPostMatch = cleanLink.match(/(?:threads\.net|threads\.com)\/@([^\/]+)\/post\/([^\/\?]+)/i);
   if (userPostMatch) {
-    return `https://www.threads.net/@${userPostMatch[1]}/post/${userPostMatch[2]}/embed`;
+    return `https://www.threads.net/@${encodeURIComponent(userPostMatch[1])}/post/${encodeURIComponent(userPostMatch[2])}/embed`;
   }
   const tMatch = cleanLink.match(/(?:threads\.net|threads\.com)\/t\/([^\/\?]+)/i);
   if (tMatch) {
-    return `https://www.threads.net/t/${tMatch[1]}/embed`;
+    return `https://www.threads.net/t/${encodeURIComponent(tMatch[1])}/embed`;
   }
-  return `${cleanLink}/embed`;
+  return '';
 }
 function renderEmbedPane(article) {
   const iframe = document.getElementById('previewIframe');
@@ -1843,7 +1854,7 @@ function renderEmbedPane(article) {
   iframe.style.height = '540px';
   const embedUrl = getThreadsEmbedUrl(article.postLink);
   if (embedUrl) {
-    iframe.src = embedUrl;
+    iframe.src = sanitizeUrl(embedUrl);
     iframe.onload = () => {
       if (spinner) spinner.style.opacity = '0';
     };
@@ -1871,28 +1882,30 @@ function renderRawPane(article) {
   container.appendChild(embedCard);
   const metaCard = document.createElement('div');
   metaCard.className = 'preview-raw-card';
-  const tagsStr = (article.tags || []).join(', ') || '無';
+  const tagsStr = (article.tags || []).map(t => escapeHtml(t)).join(', ') || '無';
   const codeBlocksCount = (article.codeBlocks || []).length;
+  const safePostLink = sanitizeUrl(article.postLink || '#');
+  const postTimeStr = article.timestampTitle || article.timestamp || 'N/A';
   metaCard.innerHTML = `
     <h5>貼文中繼資料 (Post Metadata)</h5>
     <table class="preview-meta-table">
       <tbody>
-        <tr><td>文章識別碼 (ID)</td><td><code>${article.id || 'N/A'}</code></td></tr>
-        <tr><td>作者帳號</td><td>${article.author || 'N/A'}</td></tr>
-        <tr><td>貼文連結</td><td><a href="${sanitizeUrl(article.postLink || '#')}" target="_blank" rel="noopener noreferrer">${article.postLink || 'N/A'}</a></td></tr>
-        <tr><td>發文時間</td><td>${article.timestampTitle || article.timestamp || 'N/A'}</td></tr>
-        <tr><td>儲存時間</td><td>${article.savedAt || 'N/A'}</td></tr>
+        <tr><td>文章識別碼 (ID)</td><td><code>${escapeHtml(article.id || 'N/A')}</code></td></tr>
+        <tr><td>作者帳號</td><td>${escapeHtml(article.author || 'N/A')}</td></tr>
+        <tr><td>貼文連結</td><td><a href="${safePostLink}" target="_blank" rel="noopener noreferrer">${escapeHtml(article.postLink || 'N/A')}</a></td></tr>
+        <tr><td>發文時間</td><td>${escapeHtml(postTimeStr)}</td></tr>
+        <tr><td>儲存時間</td><td>${escapeHtml(article.savedAt || 'N/A')}</td></tr>
         <tr><td>標籤清單</td><td>${tagsStr}</td></tr>
         <tr><td>程式碼區塊數</td><td>${codeBlocksCount} 個</td></tr>
-        <tr><td>貼文狀態</td><td>${article.status || 'active'}${article.expiredReason ? ` (${article.expiredReason})` : ''}</td></tr>
+        <tr><td>貼文狀態</td><td>${escapeHtml(article.status || 'active')}${article.expiredReason ? ` (${escapeHtml(article.expiredReason)})` : ''}</td></tr>
       </tbody>
     </table>
   `;
   container.appendChild(metaCard);
 }
 function escapeHtml(str) {
-  if (!str) return '';
-  return str
+  if (str === null || str === undefined) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
