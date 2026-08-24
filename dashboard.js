@@ -7,6 +7,7 @@ let currentFilterValue = '';
 let isUpdatingTimestamps = false;
 let isUpdatePaused = false;
 let cancelUpdateRequested = false;
+let activeProgressToast = null;
 let confirmModalResolve = null;
 let importModalResolve = null;
 let currentPreviewIndex = -1;
@@ -174,6 +175,9 @@ function setupEventListeners() {
         updateStatusBadge.textContent = '已暫停';
         updateStatusBadge.classList.add('paused');
       }
+      if (activeProgressToast) {
+        activeProgressToast.setPaused(true);
+      }
       showToast('貼文更新已暫停');
     } else {
       if (pauseBtn) {
@@ -184,6 +188,9 @@ function setupEventListeners() {
       if (updateStatusBadge) {
         updateStatusBadge.textContent = '執行中';
         updateStatusBadge.classList.remove('paused');
+      }
+      if (activeProgressToast) {
+        activeProgressToast.setPaused(false);
       }
       showToast('繼續執行更新');
     }
@@ -632,6 +639,48 @@ function showToast(message) {
     });
   }, 2500);
 }
+function createProgressToast(initialMessage) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return null;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = initialMessage;
+  container.appendChild(toast);
+  let currentMsg = initialMessage;
+  let isPausedState = false;
+  return {
+    update(message) {
+      currentMsg = message;
+      if (toast && toast.parentElement) {
+        toast.textContent = isPausedState ? `${currentMsg} (已暫停)` : currentMsg;
+      }
+    },
+    setPaused(paused) {
+      isPausedState = paused;
+      if (toast && toast.parentElement) {
+        toast.textContent = isPausedState ? `${currentMsg} (已暫停)` : currentMsg;
+      }
+    },
+    finish(finalMessage, duration = 2500) {
+      if (!toast || !toast.parentElement) {
+        showToast(finalMessage);
+        return;
+      }
+      toast.textContent = finalMessage;
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        toast.addEventListener('animationend', () => {
+          toast.remove();
+        });
+      }, duration);
+    },
+    dismiss() {
+      if (toast && toast.parentElement) {
+        toast.remove();
+      }
+    }
+  };
+}
 async function refreshEmbedCode(articleId) {
   const article = allArticles.find(a => a.id === articleId);
   if (!article || !article.postLink) {
@@ -815,7 +864,7 @@ async function updateAllTimestamps() {
   if (updateProgressFill) updateProgressFill.style.width = '0%';
   if (updatingStatItem) updatingStatItem.classList.remove('is-hidden');
   if (updatingProgressCount) updatingProgressCount.textContent = `0/${articlesNeedingUpdate.length}`;
-  showToast(`正在背景更新資料... (0/${articlesNeedingUpdate.length})`);
+  activeProgressToast = createProgressToast(`正在背景更新資料... (0/${articlesNeedingUpdate.length})`);
   let successCount = 0;
   let failCount = 0;
   let currentIndex = 0;
@@ -913,8 +962,8 @@ async function updateAllTimestamps() {
       renderAuthorsCloud();
       updateFilterValueOptions();
       applyFilters();
-      if (!isUpdatePaused) {
-        showToast(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount})`);
+      if (activeProgressToast) {
+        activeProgressToast.update(`更新進度: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount}, 失敗: ${failCount})`);
       }
     }
   } finally {
@@ -932,10 +981,21 @@ async function updateAllTimestamps() {
     updateFilterValueOptions();
     applyFilters();
     if (currentIndex < articlesNeedingUpdate.length && cancelUpdateRequested) {
-      showToast(`更新已中途停止！已處理: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount}, 失敗/失效: ${failCount})`);
+      const msg = `更新已中途停止！已處理: ${currentIndex}/${articlesNeedingUpdate.length} (成功: ${successCount}, 失敗/失效: ${failCount})`;
+      if (activeProgressToast) {
+        activeProgressToast.finish(msg);
+      } else {
+        showToast(msg);
+      }
     } else {
-      showToast(`資料更新完成！成功: ${successCount}, 失敗/失效: ${failCount}`);
+      const msg = `資料更新完成！成功: ${successCount}, 失敗/失效: ${failCount}`;
+      if (activeProgressToast) {
+        activeProgressToast.finish(msg);
+      } else {
+        showToast(msg);
+      }
     }
+    activeProgressToast = null;
   }
 }
 async function fetchPostInfoWithReusableTab(tabId, postLink) {
