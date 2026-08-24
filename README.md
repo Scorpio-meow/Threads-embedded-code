@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-2.0.5-blue?style=for-the-badge)](./manifest.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](./README.md#授權條款)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](#授權條款)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](#技術規格與技術棧)
 [![Platform](https://img.shields.io/badge/platform-Chromium-orange?style=for-the-badge&logo=googlechrome&logoColor=white)](#前置條件與環境需求)
 [![Build](https://img.shields.io/badge/build-zero--build--step-informational?style=for-the-badge)](#技術規格與技術棧)
@@ -15,7 +15,7 @@
 ---
 
 基於 Google Chrome Manifest V3 標準設計的輕量級瀏覽器擴充功能。  
-純前端架構、零外部依賴 — 所有資料均安全儲存於瀏覽器本機的 `chrome.storage.local`，  
+純前端架構、零外部依賴。所有資料均安全儲存於瀏覽器本機的 chrome.storage.local，  
 無需任何後端伺服器、外部資料庫或第三方 API 金鑰，完整保障您的隱私與資料安全。
 
 </div>
@@ -37,8 +37,9 @@
   - [4. 控制面板即時預覽 (Live Preview)](#4-控制面板即時預覽-live-preview)
   - [5. 背景循序同步與失效監控佇列](#5-背景循序同步與失效監控佇列)
   - [6. 雙檢視介面與全方位批次操作](#6-雙檢視介面與全方位批次操作)
-  - [7. 互動式標籤與作者統計雲](#7-互動式標籤與作者統計雲)
-  - [8. 智慧容錯匯入與多格式匯出](#8-智慧容錯匯入與多格式匯出)
+  - [7. 多維度分類篩選與彈性排序體系](#7-多維度分類篩選與彈性排序體系)
+  - [8. 互動式標籤與作者統計雲](#8-互動式標籤與作者統計雲)
+  - [9. 智慧容錯匯入與多格式匯出](#9-智慧容錯匯入與多格式匯出)
 - [技術規格與技術棧](#技術規格與技術棧)
 - [專案目錄與模組架構](#專案目錄與模組架構)
   - [專案檔案結構](#專案檔案結構)
@@ -101,7 +102,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 | 專案名稱 | 專案定位與職責 | 專案連結 |
 | :--- | :--- | :--- |
 | **Threads 程式碼儲存器** (本專案) | 瀏覽器擴充功能：負責 Threads 貼文智慧擷取、DOM 雜訊清洗、本機儲存、即時預覽與多格式匯出 | [GitHub 專案庫](https://github.com/Scorpio-meow/threads-embedded-code) |
-| **Threads 精選貼文展示** (關聯專案) | 前端展示網站：接收本擴充功能匯出的「精選貼文資料 (`threads-featured-data-*.js`)」，提供響應式卡片流與展示介面 | [GitHub 專案庫](https://github.com/Scorpio-meow/Threads-Featured-Posts) |
+| **Threads 精選貼文展示** (關聯專案) | 前端展示網站：接收本擴充功能匯出的「精選貼文資料 (threads-featured-data-*.js)」，提供響應式卡片流與展示介面 | [GitHub 專案庫](https://github.com/Scorpio-meow/Threads-Featured-Posts) |
 
 ### 雙專案協同運作流程
 
@@ -156,7 +157,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
                                                     ▼
 [資料自動提取並儲存] <── [綠色成功提示浮現] <── [自動攔截嵌入對話框]
         │
-        ├──> [點擊工具列圖示] ────> 開啟 Popup 彈出面板 (快速檢索 / 排序 / 匯出)
+        ├──> [點擊工具列圖示] ────> 開啟 Popup 彈出面板 (快速檢索 / 排序 / 篩選 / 匯出)
         │
         └──> [點擊「控制面板」] ──> 開啟全螢幕 Dashboard (即時預覽 / 批次管理 / 標籤雲)
 ```
@@ -167,15 +168,15 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 
 ### 1. 智慧攔截與安全儲存
 - **DOM 變更監聽**：透過 `MutationObserver` 監控頁面 DOM 結構，搭配 5 秒週期性檢查，無縫捕捉使用者點擊「取得內嵌程式碼」所開啟的對話框。
-- **主動式偵測機制**：透過 [processOpenEmbedDialogs](./content.js#L473-L513) 函式，即使對話框由非擴充功能按鈕開啟，也能自動解析對話框中的唯讀輸入框並儲存。
-- **上下文保護封裝**：內建 [safeStorageGet](./content.js#L20-L31) 與 [safeStorageSet](./content.js#L32-L43)，自動檢查擴充功能執行環境生命週期（[isExtensionAlive](./content.js#L13-L19)），避免擴充功能更新或重載時拋出未捕獲的 `Extension context invalidated` 例外。
+- **主動式偵測機制**：透過 `processOpenEmbedDialogs` 函式，即使對話框由非擴充功能按鈕開啟，也能自動解析對話框中的唯讀輸入框並儲存。
+- **上下文保護封裝**：內建 `safeStorageGet` 與 `safeStorageSet`，自動檢查擴充功能執行環境生命週期 (`isExtensionAlive`)，避免擴充功能更新或重載時拋出未捕獲的 `Extension context invalidated` 例外。
 
 ### 2. 頂層排版保留與深層文本清洗
 - **原生排版與換行保留**：使用頂層文字容器 `innerText` 擷取策略，完整保留文章的自然段落換行（`\n`）與 `<br>` 標籤，解決傳統遍歷子節點時將多行內文壓縮為單行空格的問題，並確保同行的 `@提及` 與 `#標籤` 保持排版連貫。
 - **UI 與時間雜訊深度過濾**：自動識別並清除作者簡介、追蹤者人數、串文數量、相對時間（如「2天」、「1小時」、「剛剛」）以及各類平台引導文字。支援 25 種以上繁體中文與英文介面模式。
 - **嚴格排除標頭連結**：精確過濾 `time` 標籤、`a[href*="/post/"]`、`a[href*="/t/"]` 貼文永久連結與 `a[href*="/@"]` 作者主頁連結，防止中繼標籤誤混入文章主體。
 - **回覆邊界隔離**：在動態牆或個人首頁擷取時，偵測到「回覆...」邊界元素時自動切斷，確保僅擷取發文者所發布的主內容。
-- **純圖片說明過濾**：透過 [isLikelyImageOnlyDescription](./content.js#L228-L235) 智慧判別僅含圖片說明的貼文（如 `Photo by ... on ...`），避免無效擷取。
+- **純圖片說明過濾**：透過 `isLikelyImageOnlyDescription` 智慧判別僅含圖片說明的貼文（如 `Photo by ... on ...`），避免無效擷取。
 
 ### 3. 多維度結構化欄位提取
 系統會將每篇貼文完整解析為標準化的結構化資料物件：
@@ -200,7 +201,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
   - **平板檢視 (480px)**：模擬平板直向顯示效果。
   - **手機檢視 (320px)**：符合 Threads 官方最小支援寬度。
   - **自適應寬度 (100%)**：填滿預覽容器空間。
-- **全方位快捷鍵與導覽**：支援鍵盤 `ESC` 關閉、`←` / `→` 方向鍵無縫切換上一篇/下一篇貼文、一鍵複製程式碼、一鍵複製內嵌碼及直接開啟原文。
+- **全方位快捷鍵與導覽**：支援鍵盤 `ESC` 關閉、左/右方向鍵無縫切換上一篇/下一篇貼文、一鍵複製程式碼、一鍵複製內嵌碼及直接開啟原文。
 
 ### 5. 背景循序同步與失效監控佇列
 - **循序非同步更新**：點擊「更新貼文資料」時，系統會依照當前篩選與排序後的結果建立佇列，以單一工作分頁循序開啟進行同步，有效避免多開分頁導致的系統卡頓或平台流量限制。
@@ -216,11 +217,26 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 - **批次勾選管理**：支援全選目前頁面、反選、半選（Indeterminate）狀態顯示，支援「批次複製 Embed 代碼」與「批次刪除」。
 - **自訂非阻塞確認 Modal**：敏感破壞性操作（如清除全部、批次刪除、覆寫匯入）全面採用自訂動畫 Modal 進行二次確認，徹底替換原生 `confirm()` 與 `alert()`。
 
-### 7. 互動式標籤與作者統計雲
+### 7. 多維度分類篩選與彈性排序體系
+系統在 Popup 與 Dashboard 均提供 6 種篩選維度與 6 種排序規則：
+
+- **6 種分類篩選模式**：
+  - `全部文章 (all)`: 顯示資料庫中所有貼文。
+  - `依作者 (author)`: 二級下拉選單動態列出所有作者，精確篩選特定發文者。
+  - `依標籤 (tag)`: 二級下拉選單動態列出所有標籤，精確篩選特定技術主題。
+  - `無內文 (noContent)`: 快速找出純圖片、純程式碼或空白無文字說明的貼文，便於集中維護。
+  - `無發布時間 (noTimestamp)`: 篩選出未成功擷取官方發布時間或時間戳記與儲存時間異常之項目。
+  - `失效貼文 (expired)`: 篩選出被原作者刪除、私密化或轉導的失效貼文。
+- **6 種排序規則**：
+  - `儲存時間: 新到舊 (savedAt-desc)` / `儲存時間: 舊到新 (savedAt-asc)`
+  - `發布時間: 新到舊 (timestamp-desc)` / `發布時間: 舊到新 (timestamp-asc)`
+  - `作者名稱: A-Z (author-asc)` / `作者名稱: Z-A (author-desc)`
+
+### 8. 互動式標籤與作者統計雲
 - **即時頻次計算**：自動統計所有貼文中的 Top 15 常用標籤與 Top 15 熱門作者。
 - **點擊即時篩選**：點擊標籤雲或作者雲中的任一徽章，即可快速切換儀表板清單的篩選條件；再次點擊即可取消篩選。
 
-### 8. 智慧容錯匯入與多格式匯出
+### 9. 智慧容錯匯入與多格式匯出
 - **三種專業匯出格式**：簡易版 JS 嵌入碼、精選貼文資料、完整版備份檔案。
 - **雙模式智慧匯入**：
   - **合併資料 (Merge)**：自動比對貼文網址（`postLink`），略過重複項目，僅追加新資料。
@@ -258,7 +274,7 @@ threads-embedded-code/
 ├── styles.css            # 注入至 Threads 網頁的通知提示樣式
 ├── popup.html            # 瀏覽器工具列彈出視窗 HTML
 ├── popup.css             # 彈出視窗樣式表 (深色主題、響應式清單)
-├── popup.js              # 彈出視窗控制邏輯 (搜尋、排序、更新、匯出、匯入)
+├── popup.js              # 彈出視窗控制邏輯 (搜尋、排序、篩選、更新、匯出、匯入)
 ├── dashboard.html        # 完整管理儀表板 HTML (包含即時預覽彈窗、統計看板、批次工具列)
 ├── dashboard.css         # 儀表板樣式表 (Grid 排版、裝置切換器、動畫轉場)
 ├── dashboard.js          # 儀表板控制邏輯 (統計雲、預覽控制器、循序佇列、批次處理)
@@ -271,13 +287,13 @@ threads-embedded-code/
 
 | 檔案路徑 | 模組層級 | 主要職責與實作內容 |
 | :--- | :--- | :--- |
-| [manifest.json](./manifest.json) | 設定層 | 聲明 Manifest V3 規格、儲存與分頁權限、主機比對規則與 CSP 配置。 |
-| [content.js](./content.js) | 注入腳本層 | 負責監聽 Threads DOM 變化、攔截內嵌對話框、頂層排版提取與正規表達式文本清洗。 |
-| [styles.css](./styles.css) | 注入樣式層 | 定義顯示於 Threads 頁面右上角之儲存成功/失敗浮動通知外觀與進場動畫。 |
-| [popup.html](./popup.html) / [popup.js](./popup.js) | 快速檢視層 | 提供 400px 寬度的工具列快速面板，支援即時關鍵字查詢、單篇維護與基本匯出。 |
-| [dashboard.html](./dashboard.html) / [dashboard.js](./dashboard.js) | 完整管理層 | 全螢幕資料庫中心，提供 Live Preview 即時預覽、批次管理、標籤/作者統計雲與更新佇列。 |
-| [llms.txt](./llms.txt) | 規範說明層 | 提供 AI 代理與 RAG 檢索系統快速索引之結構化摘要說明文件。 |
-| [README.md](./README.md) | 完整文檔層 | 專案主要說明文件，包含完整系統架構、演算法剖析、資料 Schema 與常見問題。 |
+| `manifest.json` | 設定層 | 聲明 Manifest V3 規格、儲存與分頁權限、主機比對規則與 CSP 配置。 |
+| `content.js` | 注入腳本層 | 負責監聽 Threads DOM 變化、攔截內嵌對話框、頂層排版提取與正規表達式文本清洗。 |
+| `styles.css` | 注入樣式層 | 定義顯示於 Threads 頁面右上角之儲存成功/失敗浮動通知外觀與進場動畫。 |
+| `popup.html` / `popup.js` | 快速檢視層 | 提供 400px 寬度的工具列快速面板，支援即時關鍵字查詢、6種分類、6種排序、單篇維護與基本匯出。 |
+| `dashboard.html` / `dashboard.js` | 完整管理層 | 全螢幕資料庫中心，提供 Live Preview 即時預覽、批次管理、標籤/作者統計雲與背景更新佇列。 |
+| `llms.txt` | 規範說明層 | 提供 AI 代理與 RAG 檢索系統快速索引之結構化摘要說明文件。 |
+| `README.md` | 完整文檔層 | 專案主要說明文件，包含完整系統架構、演算法剖析、資料 Schema 與常見問題。 |
 
 ---
 
@@ -302,8 +318,8 @@ flowchart TD
 
     subgraph PopupView["Popup 彈出面板 (400px)"]
         H -->|"safeStorageGet (讀取)"| I["popup.js 渲染引擎"]
-        I --> J["全文搜尋 / 排序 / 篩選"]
-        I --> K["單筆維護 / 簡易匯出"]
+        I --> J["全文搜尋 / 6種排序 / 6種篩選"]
+        I --> K["單筆維護 / 快速匯出"]
     end
 
     subgraph DashboardView["Dashboard 全頁控制面板"]
@@ -384,7 +400,7 @@ sequenceDiagram
 
 ### 1. 頂層文字容器排版擷取演算法
 
-為避免抓取到的內文換行被過度壓平，[content.js](./content.js#L69-L124) 採用頂層文字容器鎖定策略：
+為避免抓取到的內文換行被過度壓平，`content.js` 採用頂層文字容器鎖定策略：
 
 1. **定位候選容器**：選取 `span[class*="xo1l8bm"][dir="auto"]`、`span[class*="xi7mnp6"][dir="auto"]` 與 `div[class*="x1iorvi4"][dir="auto"]` 等主內容區塊。
 2. **嚴格過濾時間與標頭節點**：
@@ -396,7 +412,7 @@ sequenceDiagram
 4. **原生排版輸出**：直接調用 `innerText.trim()`，保留 `<br>` 與天然段落換行，最後以 `\n\n` 自然拼接各獨立段落。
 
 ```javascript
-// 範例：頂層容器過濾虛擬碼
+// 頂層容器過濾虛擬碼
 const topLevelContainers = candidateContainers.filter(container => {
   return !candidateContainers.some(other => other !== container && other.contains(container));
 });
@@ -408,7 +424,7 @@ const fullText = topLevelContainers
 
 ### 2. 嵌入碼對話框權重評分演算法
 
-當 Threads 彈出嵌入對話框時，頁面可能存在多個唯讀欄位（如純連結或短網址）。[extractEmbedCodeFromDialog](./content.js#L398-L427) 對所有輸入框進行權重評分：
+當 Threads 彈出嵌入對話框時，頁面可能存在多個唯讀欄位（如純連結或短網址）。`extractEmbedCodeFromDialog` 對所有輸入框進行權重評分：
 
 ```javascript
 let score = value.length;
@@ -420,7 +436,7 @@ if (/threads\.com/i.test(value)) score += 100;
 
 ### 3. 多模態程式碼區塊識別機制
 
-[extractCodeBlocks](./content.js#L622-L673) 結合多種模式自動偵測貼文中的程式碼片段：
+`extractCodeBlocks` 結合多種模式自動偵測貼文中的程式碼片段：
 
 - **Markdown 圍欄程式碼區塊**：使用正規表達式 ``/```(\w*)\n([\s\S]*?)```/g`` 匹配。若有宣告語言（例如 ````javascript ... ````），自動提取該語言屬性。
 - **HTML 程式碼標籤**：選取 DOM 中的 `pre` 或 `code` 元素，過濾字元數大於 5 的有效內容。
@@ -479,7 +495,7 @@ const NOISE_PATTERNS = [
 
 ### 5. 非同步循序更新佇列與工作分頁架構
 
-在 [dashboard.js](./dashboard.js) 中，貼文更新採用單一工作分頁循序控制迴圈，支援「暫停」與「取消」訊號監聽：
+在 `dashboard.js` 中，貼文更新採用單一工作分頁循序控制迴圈，支援「暫停」與「取消」訊號監聽：
 
 ```javascript
 for (let i = 0; i < queue.length; i++) {
@@ -739,6 +755,7 @@ const posts = [
 | **切換預覽裝置** | 在預覽視窗工具列點擊「官方預設 (658px)」、「平板 (480px)」、「手機 (320px)」或「自適應 (100%)」。 |
 | **批次操作** | 勾選個別卡片左上角核取方塊，或點擊工具列「全選目前頁面」，即可使用「批次複製 Embed」與「批次刪除」。 |
 | **依標籤/作者篩選** | 點擊側邊欄標籤雲或作者雲中的任一徽章，即可快速套用篩選；再次點擊即取消。 |
+| **多維度分類與排序** | 透過頂部下拉選單切換 6 種分類篩選（如無內文、失效貼文）與 6 種排序規則。 |
 | **背景同步更新** | 點擊側邊欄「更新貼文資料」，可隨時點擊「暫停/繼續」或「取消」。 |
 
 ---
@@ -760,7 +777,7 @@ const posts = [
 > [!CAUTION]
 > **問題：Threads 官方改版後，擴充功能無法正常擷取？**
 > - 本工具高度依賴 Threads 前端網頁的 DOM 選擇器特徵（例如特定編碼的 class 類別）。
-> - 若 Threads 官方進行了重大的結構或樣式修改，將會導致擷取演算法失效。此時請將問題提交至 GitHub Issue，我們將會盡快更新 [content.js](./content.js) 中對應的 CSS 選擇器。
+> - 若 Threads 官方進行了重大的結構或樣式修改，將會導致擷取演算法失效。此時請將問題提交至 GitHub Issue，我們將會盡快更新 `content.js` 中對應的 CSS 選擇器。
 
 > [!IMPORTANT]
 > **問題：本機儲存空間是否有限制？**
@@ -785,13 +802,18 @@ cd threads-embedded-code
 # 直接在瀏覽器擴充功能頁面載入未封裝項目，即可開始調試與開發
 ```
 
-若需執行周邊開發工具或腳本測試，建議優先使用 `bun` 指令執行。
+若需執行周邊開發工具或靜態預覽伺服器，建議優先使用 `bun` 指令執行：
+
+```bash
+# 快速啟動本地靜態伺服器預覽儀表板
+bunx http-server -p 3000
+```
 
 ### 開發注意事項與架構規範
 
 - **零外部依賴原則**：專案嚴格保持原生輕量化設計，請勿引入任何 npm 執行期依賴或外部 CDN 框架。
 - **嚴格 CSP 相容**：所有 HTML 頁面及注入的腳本**禁止使用行內樣式 (inline style) 與行內事件監聽器**（例如 `onclick="..."`），必須使用 `addEventListener` 進行事件綁定。
-- **欄位擴展規範**：若在 [content.js](./content.js) 中新增或修改了儲存欄位，請務必同步更新本 README 的 [資料模型與儲存 Schema](#資料模型與儲存-schema) 區段與匯出/匯入模組。
+- **欄位擴展規範**：若在 `content.js` 中新增或修改了儲存欄位，請務必同步更新本 README 的 [資料模型與儲存 Schema](#資料模型與儲存-schema) 區段與匯出/匯入模組。
 
 ---
 
@@ -804,8 +826,9 @@ cd threads-embedded-code
 #### 新增
 - 實作控制面板即時預覽彈窗 (Live Preview Modal)，支援原生內嵌與原始碼雙分頁檢視。
 - 支援 658px 官方標準預設寬度、480px 平板、320px 手機與 100% 自適應多裝置切換。
-- 支援鍵盤快捷鍵操作（`ESC` 關閉、`←` / `→` 左右切換上一篇/下一篇貼文）。
+- 支援鍵盤快捷鍵操作（`ESC` 關閉、左/右方向鍵左右切換上一篇/下一篇貼文）。
 - 實作背景循序更新佇列之「暫停 / 繼續」與「取消」控制機制。
+- 新增「無內文 (noContent)」分類篩選設定，方便集中檢視與管理純代碼或無文字描述之貼文。
 
 #### 改善
 - 優化頂層文字容器 `innerText` 排版擷取演算法，解決過往使用 `\s+` 壓平換行導致多行排版遺失的問題，完整保留段落換行、`<br>` 標籤及 Markdown 代碼區塊格式。
@@ -816,8 +839,8 @@ cd threads-embedded-code
 ### [2.0.5] - 2026-07-06
 
 #### 新增
-- 實作 [safeStorageGet](./content.js#L20-L31) 與 [safeStorageSet](./content.js#L32-L43) 封裝，防止 context invalidated 後未捕獲的例外中斷腳本執行。
-- 支援 [processOpenEmbedDialogs](./content.js#L473-L513) 主動偵測機制，即使用戶未透過擴充功能按鈕開啟嵌入對話框也能成功擷取。
+- 實作 `safeStorageGet` 與 `safeStorageSet` 封裝，防止 context invalidated 後未捕獲的例外中斷腳本執行。
+- 支援 `processOpenEmbedDialogs` 主動偵測機制，即使用戶未透過擴充功能按鈕開啟嵌入對話框也能成功擷取。
 
 #### 改善
 - 擴充過濾規則至 20 種以上的 UI 雜訊模式，並新增英文語系介面的過濾規則。
@@ -853,7 +876,7 @@ cd threads-embedded-code
 
 本專案已在根目錄提供獨立的 **[llms.txt](./llms.txt)** 規格文件，專供 AI 代理、LLM 檢索工具與 RAG 索引系統快速讀取與結構化解析本專案：
 
-- 獨立文件路徑：[llms.txt](./llms.txt)
+- 獨立文件路徑：`llms.txt`
 - 包含內容：專案核心資訊、核心模組路徑、完整資料模型 Schema、核心演算法實作機制與關聯專案資訊。
 
 ---
