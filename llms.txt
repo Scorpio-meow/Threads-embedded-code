@@ -7,6 +7,7 @@
 - Specification: Google Chrome Extensions Manifest V3
 - Tech Stack: Pure Native JavaScript (ES6+), HTML5, CSS3 Custom Properties (Zero external dependencies, zero compilation/build step)
 - Data Persistence: Browser local storage (chrome.storage.local, 10MB quota, 100% offline, privacy-first)
+- License: MIT ([LICENSE](./LICENSE))
 - Source Repository: https://github.com/Scorpio-meow/threads-embedded-code
 - Companion Showcase Repository: https://github.com/Scorpio-meow/Threads-Featured-Posts (Consumes exported featured post data as its primary dataset)
 
@@ -213,3 +214,6 @@ interface CodeBlock {
 - Clone repository and navigate to `chrome://extensions/` in Chromium-based browsers.
 - Enable **Developer Mode** in the top right.
 - Click **Load unpacked** and select the project root directory.
+
+## License
+Licensed under the [MIT License](./LICENSE).
