@@ -2,7 +2,7 @@
 > Lightweight pure front-end browser extension built on Google Chrome Extensions Manifest V3 for automatically capturing, sanitizing, managing, previewing, and exporting structured code snippets and metadata from Threads posts.
 
 ## Core Metadata
-- Project Name: Threads Code Saver (Threads 程式碼儲存器)
+- Project Name: Threads Code Saver
 - Current Version: 2.0.5
 - Specification: Google Chrome Extensions Manifest V3
 - Tech Stack: Pure Native JavaScript (ES6+), HTML5, CSS3 Custom Properties (Zero external dependencies, zero compilation/build step)
@@ -10,7 +10,7 @@
 - Source Repository: https://github.com/Scorpio-meow/threads-embedded-code
 - Companion Showcase Repository: https://github.com/Scorpio-meow/Threads-Featured-Posts (Consumes exported featured post data as its primary dataset)
 
-## Core Files & Directory Structure
+## Core Files
 - manifest.json: Extension configuration manifest declaring Manifest V3 specs, permissions (storage, tabs, scripting), host matches, and strict CSP headers.
 - content.js: Primary Content Script handling Threads DOM mutation observation, embed dialog weighted scoring, top-level text container extraction, image-only description filtering, and 25+ UI/timestamp noise regex cleaners.
 - styles.css: Injected floating notification styles displayed on Threads web pages.
@@ -22,10 +22,10 @@
 - dashboard.js: Dashboard core controller managing the Live Preview modal, sequential asynchronous update queue (with pause/resume/cancel signals), Top 15 tag/author clouds, batch operations, and custom non-blocking confirmation dialogs.
 - favicon.png: 128x128 extension icon asset.
 - README.md: Comprehensive Traditional Chinese technical documentation with Mermaid diagrams, schemas, and developer guide.
-- llms.txt: This file, providing structured technical specifications for AI agents and LLM/RAG indexing pipelines.
+- llms.txt: Structured technical specifications for AI agents and LLM/RAG indexing pipelines.
 
 ## Data Models & Schema
-All post records are stored as an array of SavedArticle objects within the savedArticles key in chrome.storage.local.
+All post records are stored as an array of SavedArticle objects within the `savedArticles` key in `chrome.storage.local`.
 
 ### SavedArticle Interface
 ```typescript
@@ -42,7 +42,7 @@ interface SavedArticle {
   /** Publication timestamp in ISO 8601 standard format */
   timestamp: string;
 
-  /** Formatted publication title string (e.g., "2026年5月29日 上午10:00") */
+  /** Formatted publication title string (e.g., "May 29, 2026, 10:00 AM") */
   timestampTitle: string;
 
   /** Local storage timestamp in ISO 8601 format */
@@ -112,33 +112,33 @@ interface CodeBlock {
 ## Key Concepts & Algorithms
 
 ### 1. Top-Level Text Container Layout Extraction
-- Targets primary content nodes: span[class*="xo1l8bm"][dir="auto"], span[class*="xi7mnp6"][dir="auto"], and div[class*="x1iorvi4"][dir="auto"].
-- Strictly ignores time tags, permalink tags (a[href*="/post/"], a[href*="/t/"]), author header links (a[href*="/@"]), and Meta AI promotional text.
-- Applies isLikelyImageOnlyDescription heuristic to filter out media captions.
-- Deduplicates containers hierarchically and invokes innerText.trim(), preserving paragraph breaks and <br> elements without whitespace collapse.
+- Targets primary content nodes: `span[class*="xo1l8bm"][dir="auto"]`, `span[class*="xi7mnp6"][dir="auto"]`, and `div[class*="x1iorvi4"][dir="auto"]`.
+- Strictly ignores `time` tags, permalink tags (`a[href*="/post/"]`, `a[href*="/t/"]`), author header links (`a[href*="/@"]`), and Meta AI promotional text.
+- Applies `isLikelyImageOnlyDescription` heuristic to filter out media captions.
+- Deduplicates containers hierarchically and invokes `innerText.trim()`, preserving paragraph breaks and `<br>` elements without whitespace collapse.
 
 ### 2. Embed Dialog Weighted Scoring Algorithm
 - Scans all readonly input fields within the embed modal and scores candidates:
   - Base string length score
-  - Contains data-text-post-permalink: +1000 points
-  - Contains <blockquote: +500 points
-  - Contains threads.com: +100 points
+  - Contains `data-text-post-permalink`: +1000 points
+  - Contains `<blockquote`: +500 points
+  - Contains `threads.com`: +100 points
 - Selects the highest-scoring candidate to ensure 100% complete blockquote retrieval.
 
 ### 3. Multimodal Code Block Detection
-- Markdown fenced code blocks: Matches /```(\w*)\n([\s\S]*?)```/g and captures declared language identifiers.
+- Markdown fenced code blocks: Matches `/```(\w*)\n([\s\S]*?)```/g` and captures declared language identifiers.
 - HTML pre/code tags: Captures nodes with text length greater than 5 characters.
-- Monospace font blocks: Captures elements with style*="monospace" declarations.
-- Inline code: Matches /`([^`\n]{2,})`/g and combines tokens into an inline code record.
+- Monospace font blocks: Captures elements with `style*="monospace"` declarations.
+- Inline code: Matches `/`([^`\n]{2,})`/g` and combines tokens into an inline code record.
 
 ### 4. 25+ Regex Noise & Timestamp Filtering Pipeline
-- Cleaners strip translation buttons, carousel counters (e.g., 1/5), relative timestamps (e.g., "2d", "1h", "just now", "yesterday"), follower metrics, thread counts, and navigation items across Traditional Chinese and English UI locales.
+- Cleaners strip translation buttons, carousel counters (e.g., 1/5), relative timestamps (e.g., "2d", "1h", "just now", "yesterday"), follower metrics, thread counts, and navigation items across multiple UI locales.
 
 ### 5. Live Preview Protocol & Dynamic Height Adaptation
 - Dual-tab interface supporting Official Embed preview and Raw Source/Metadata inspection.
 - Device width presets: 658px (Official default), 480px (Tablet), 320px (Mobile), and 100% (Responsive fluid).
 - Keyboard navigation: ESC to close, Left Arrow / Right Arrow for previous/next post navigation.
-- Cross-origin height adaptation: Listens for window.message events with type: 'MEASURE' from threads.net/threads.com to automatically adjust frame height.
+- Cross-origin height adaptation: Listens for `window.message` events with `type: 'MEASURE'` strictly validating origin against allowed domains (`threads.net`, `threads.com`, `instagram.com`).
 
 ### 6. Background Sequential Update Queue
 - Orders update tasks based on current UI filter and sort state.
@@ -148,27 +148,27 @@ interface CodeBlock {
 
 ### 7. 6 Filter Dimensions & 6 Sorting Rules
 - Filter Categories:
-  - all: All stored posts
-  - author: Filter by specific author handle
-  - tag: Filter by specific hashtag/topic
-  - noContent: Posts without text body (pure code, images, or empty descriptions)
-  - noTimestamp: Posts lacking timestamp or requiring synchronization
-  - expired: Deleted, privatized, or redirected posts
+  - `all`: All stored posts
+  - `author`: Filter by specific author handle
+  - `tag`: Filter by specific hashtag/topic
+  - `noContent`: Posts without text body (pure code, images, or empty descriptions)
+  - `noTimestamp`: Posts lacking timestamp or requiring synchronization
+  - `expired`: Deleted, privatized, or redirected posts
 - Sorting Rules:
-  - savedAt-desc / savedAt-asc: Saved time Newest / Oldest
-  - timestamp-desc / timestamp-asc: Publish time Newest / Oldest
-  - author-asc / author-desc: Author handle A-Z / Z-A
+  - `savedAt-desc` / `savedAt-asc`: Saved time Newest / Oldest
+  - `timestamp-desc` / `timestamp-asc`: Publish time Newest / Oldest
+  - `author-asc` / `author-desc`: Author handle A-Z / Z-A
 
 ## Export & Import Specifications
 
 ### Export Formats
-1. Embed Only: threads-embed-codes-YYYY-MM-DD.js
+1. Embed Only: `threads-embed-codes-YYYY-MM-DD.js`
    ```javascript
    const posts = [
        '<blockquote class="text-post-media" data-text-post-permalink="...">...</blockquote>'
    ];
    ```
-2. Featured Data: threads-featured-data-YYYY-MM-DD.js (Formatted for Threads-Featured-Posts; author without @ prefix)
+2. Featured Data: `threads-featured-data-YYYY-MM-DD.js` (Formatted for Threads-Featured-Posts; author without @ prefix)
    ```javascript
    const posts = [
        {
@@ -180,7 +180,7 @@ interface CodeBlock {
        }
    ];
    ```
-3. Full Backup Data: threads-full-data-YYYY-MM-DD.js (Complete SavedArticle fields)
+3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Complete SavedArticle fields)
    ```javascript
    const posts = [
        {
@@ -189,7 +189,7 @@ interface CodeBlock {
            "author": "@user",
            "content": "...",
            "timestamp": "2026-05-29T02:00:00.000Z",
-           "timestampTitle": "2026年5月29日 上午10:00",
+           "timestampTitle": "May 29, 2026, 10:00 AM",
            "savedAt": "2026-05-29T02:10:00.000Z",
            "tags": ["JavaScript"],
            "status": "active"
@@ -198,17 +198,18 @@ interface CodeBlock {
    ```
 
 ### Import Pipeline
-- Three-stage resilient parser: JSON.parse -> dynamic evaluation via new Function -> token-based regular expression extraction.
+- Three-stage resilient parser: `JSON.parse` -> dynamic evaluation via `new Function` -> token-based regular expression extraction.
 - Modes: Merge (Deduplicates based on postLink) or Overwrite (Replaces entire database).
 
-## Permissions & Content Security Policy (CSP)
-- Permissions: storage, tabs, scripting
-- Host Permissions: https://www.threads.com/*, https://threads.com/*, https://www.threads.net/*, https://threads.net/*
-- CSP Headers: script-src 'self'; object-src 'self'; frame-src https://www.threads.com https://www.threads.net https://*.threads.com https://*.threads.net; (No inline scripts, no remote CDN scripts)
+## Security & Content Security Policy (CSP)
+- Permissions: `storage`, `tabs`, `scripting`
+- Host Permissions: `https://www.threads.com/*`, `https://threads.com/*`, `https://www.threads.net/*`, `https://threads.net/*`
+- CSP Headers: `script-src 'self'; object-src 'self'; frame-src https://www.threads.com https://www.threads.net https://*.threads.com https://*.threads.net;` (No inline scripts, no remote CDN scripts)
+- PostMessage Security: Strict origin checking on incoming iframe resize messages.
+- XSS Prevention: Safe text node rendering (`textContent` and `innerText`) for user-controlled strings in dashboard preview metadata.
 
 ## Development & Local Testing
-- Serve local directory using Bun:
-  ```bash
-  bunx http-server -p 3000
-  ```
-- Load as unpacked extension in Chromium via chrome://extensions/ with Developer Mode enabled.
+- Pure front-end extension with zero build steps and zero local server requirements.
+- Clone repository and navigate to `chrome://extensions/` in Chromium-based browsers.
+- Enable **Developer Mode** in the top right.
+- Click **Load unpacked** and select the project root directory.
