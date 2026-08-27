@@ -145,7 +145,7 @@ interface CodeBlock {
 - Orders update tasks based on current UI filter and sort state.
 - Executes updates sequentially inside a single hidden tab to eliminate rate limiting or high CPU usage.
 - Supports pause, resume, and cancellation signals.
-- Automatically marks posts as expired upon redirect or 8-second timeout, and restores them to active once accessible.
+- Automatically marks posts as expired upon redirect or post-not-found (404/deleted), and restores them to active once accessible.
 
 ### 7. 6 Filter Dimensions & 6 Sorting Rules
 - Filter Categories:

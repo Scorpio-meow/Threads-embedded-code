@@ -208,7 +208,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 - **進度與中斷控制**：即時顯示「更新中 (X/Y)」進度條與百分比動畫，並提供「**暫停 / 繼續**」與「**取消**」功能按鈕。
 - **智慧失效標記與自動恢復**：
   - 若貼文被刪除、轉為私密或發生轉導（`redirected`），系統將自動標記為 `expired` 並記錄原因。
-  - 若頁面載入逾時（8 秒內未找到貼文容器 `[data-pressable-container]`），將記錄為 `post-not-found`。
+  - 若頁面確認為不存在或移除（出現 404 或未找到貼文容器 `[data-pressable-container]`），將記錄為 `post-not-found`。
   - 若下次更新時貼文恢復可存取狀態，系統會自動清除失效標籤並恢復為 `active`。
 
 ### 6. 雙檢視介面與全方位批次操作
@@ -358,10 +358,10 @@ sequenceDiagram
         Queue->>Tab: 建立隱藏分頁 (載入 postLink)
         Tab->>Page: 發送 HTTP 請求
         Page-->>Tab: 回傳 HTML 與動態內容
-        Queue->>Tab: 輪詢檢查頁面載入狀態 (最長 8 秒)
+        Queue->>Tab: 等待分頁載入完成 (status complete)
         alt 貼文網址變更 (Redirected)
             Queue->>Storage: 標記 status='expired', reason='redirected'
-        else 逾時未找到主容器
+        else 頁面不存在或已被移除
             Queue->>Storage: 標記 status='expired', reason='post-not-found'
         else 成功讀取發布時間與最新內容
             Queue->>Storage: 更新 timestampTitle, 清除失效狀態 status='active'
@@ -783,7 +783,7 @@ const posts = [
 > [!NOTE]
 > **問題：為什麼有些貼文在背景更新後被標記為「失效貼文」？**
 > - 這代表貼文可能已被原作者刪除、帳號被設為私密，或原作者封鎖了匿名存取。
-> - 背景分頁的網路連線逾時（預設為 8 秒）也會導致暫時性無法讀取，因而判定為失效。
+> - 背景分頁若確認頁面不存在（例如 404 或已刪除），也會判定為失效。
 > - 若貼文隨後恢復正常，在下一次更新時，系統偵測到內容便會自動將其回復為 `active` 狀態。
 
 > [!CAUTION]

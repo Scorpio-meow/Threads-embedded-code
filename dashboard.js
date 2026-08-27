@@ -1002,11 +1002,11 @@ async function fetchPostInfoWithReusableTab(tabId, postLink) {
   try {
     const safeUrl = sanitizeUrl(postLink);
     if (safeUrl === '#') return null;
-    const navPromise = waitForTabNavigation(tabId, 8000);
+    const navPromise = waitForTabNavigation(tabId);
     await chrome.tabs.update(tabId, { url: safeUrl });
     const isComplete = await navPromise;
     if (!isComplete) {
-      console.warn('[Dashboard] 分頁載入逾時 (8s):', safeUrl);
+      console.warn('[Dashboard] 分頁載入失敗或分頁已關閉:', safeUrl);
       return null;
     }
     const loadedTab = await chrome.tabs.get(tabId);
@@ -1035,24 +1035,20 @@ async function fetchPostInfoWithReusableTab(tabId, postLink) {
     return null;
   }
 }
-function waitForTabNavigation(tabId, timeoutMs = 8000) {
+function waitForTabNavigation(tabId) {
   return new Promise((resolve) => {
     let resolved = false;
-    let timer = null;
     const cleanup = () => {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
       chrome.tabs.onUpdated.removeListener(listener);
+      chrome.tabs.onRemoved.removeListener(removeListener);
     };
-    timer = setTimeout(() => {
-      if (!resolved) {
+    const removeListener = (removedTabId) => {
+      if (removedTabId === tabId && !resolved) {
         resolved = true;
         cleanup();
         resolve(false);
       }
-    }, timeoutMs);
+    };
     const listener = (updatedTabId, changeInfo) => {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
         if (!resolved) {
@@ -1063,6 +1059,7 @@ function waitForTabNavigation(tabId, timeoutMs = 8000) {
       }
     };
     chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onRemoved.addListener(removeListener);
   });
 }
 async function extractPostInfoFromPage(requestedPostLink = '') {
@@ -1198,9 +1195,14 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     return filteredLines.join('\n');
   }
   return new Promise((resolve) => {
-    const maxWaitMs = 6000;
-    const startTime = Date.now();
     const check = () => {
+      const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
+      const isExplicitlyNotFound = /此頁面無法使用|此串文已被移除|This page isn't available|Page Not Found|Sorry, this page isn't available/i.test(bodyText) ||
+        /Page Not Found/i.test(document.title || '');
+      if (isExplicitlyNotFound) {
+        resolve(createExpiredPostResult('post-not-found'));
+        return true;
+      }
       const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
       if (requestedPostLink && !requestedPostElement) {
         return false;
@@ -1362,19 +1364,8 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     };
     if (check()) return;
     const interval = setInterval(() => {
-      if (check() || (Date.now() - startTime > maxWaitMs)) {
+      if (check()) {
         clearInterval(interval);
-        if (Date.now() - startTime > maxWaitMs) {
-          const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
-          const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
-          const isExplicitlyNotFound = /此頁面無法使用|此串文已被移除|This page isn't available|Page Not Found|Sorry, this page isn't available/i.test(bodyText) ||
-            /Page Not Found/i.test(document.title || '');
-          if (isExplicitlyNotFound || (requestedPostLink && !requestedPostElement)) {
-            resolve(createExpiredPostResult('post-not-found'));
-          } else {
-            resolve(null);
-          }
-        }
       }
     }, 80);
   });
