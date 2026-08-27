@@ -1002,10 +1002,20 @@ async function fetchPostInfoWithReusableTab(tabId, postLink) {
   try {
     const safeUrl = sanitizeUrl(postLink);
     if (safeUrl === '#') return null;
+    const navPromise = waitForTabNavigation(tabId, 8000);
     await chrome.tabs.update(tabId, { url: safeUrl });
-    await waitForTabNavigation(tabId, 4500);
+    const isComplete = await navPromise;
+    if (!isComplete) {
+      console.warn('[Dashboard] 分頁載入逾時 (8s):', safeUrl);
+      return null;
+    }
     const loadedTab = await chrome.tabs.get(tabId);
-    if (!isSameThreadsPostLink(safeUrl, loadedTab?.url || '')) {
+    const currentUrl = loadedTab?.url || '';
+    if (!currentUrl || currentUrl === 'about:blank' || currentUrl.startsWith('chrome-error://') || !currentUrl.startsWith('http')) {
+      console.warn('[Dashboard] 分頁網址異常或無法載入:', currentUrl);
+      return null;
+    }
+    if (!isSameThreadsPostLink(safeUrl, currentUrl)) {
       return {
         status: 'expired',
         reason: 'redirected'
@@ -1025,13 +1035,21 @@ async function fetchPostInfoWithReusableTab(tabId, postLink) {
     return null;
   }
 }
-function waitForTabNavigation(tabId, timeoutMs = 4500) {
+function waitForTabNavigation(tabId, timeoutMs = 8000) {
   return new Promise((resolve) => {
     let resolved = false;
-    const timeout = setTimeout(() => {
+    let timer = null;
+    const cleanup = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      chrome.tabs.onUpdated.removeListener(listener);
+    };
+    timer = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        chrome.tabs.onUpdated.removeListener(listener);
+        cleanup();
         resolve(false);
       }
     }, timeoutMs);
@@ -1039,8 +1057,7 @@ function waitForTabNavigation(tabId, timeoutMs = 4500) {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
         if (!resolved) {
           resolved = true;
-          clearTimeout(timeout);
-          chrome.tabs.onUpdated.removeListener(listener);
+          cleanup();
           resolve(true);
         }
       }
@@ -1059,17 +1076,25 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     };
   }
   function findPostElementFromPostLink(postLink) {
-    const match = postLink.match(/\/(post|t)\/([^\/\?]+)/i);
+    if (!postLink || typeof postLink !== 'string') return null;
+    const cleanLink = postLink.split(/[?#]/)[0].replace(/\/+$/, '');
+    const match = cleanLink.match(/(?:\/|^)(?:post|t)\/([a-zA-Z0-9_-]+)/i);
     if (!match) return null;
-    const postId = match[2];
+    const postId = match[1];
     const links = Array.from(document.querySelectorAll(`a[href*="/post/${postId}"], a[href*="/t/${postId}"]`));
     for (const link of links) {
-      const pressable = link.closest('[data-pressable-container]');
+      const pressable = link.closest('[data-pressable-container]') ||
+        link.closest('article') ||
+        link.closest('div[data-pagelet]') ||
+        link.closest('div[tabindex="-1"]');
       if (pressable) return pressable;
     }
     const timeEl = document.querySelector('time[datetime]');
     if (timeEl) {
-      const pressable = timeEl.closest('[data-pressable-container]');
+      const pressable = timeEl.closest('[data-pressable-container]') ||
+        timeEl.closest('article') ||
+        timeEl.closest('div[data-pagelet]') ||
+        timeEl.closest('div[tabindex="-1"]');
       if (pressable) return pressable;
     }
     return null;
@@ -1120,6 +1145,16 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       /^(?:圖片|相片|photo|image)\s*\d+\s*[\/／,，共of\s]+\d+(?:\s*張)?$/i
     ].some(pattern => pattern.test(normalizedText));
   }
+  function isPlatformPlaceholderSummary(text) {
+    if (!text || typeof text !== 'string') return false;
+    const normalizedText = String(text).replace(/\s+/g, ' ').trim();
+    return [
+      /^加入\s*Threads\s*即可分享意見/i,
+      /在貼文中提及\s*@meta\.ai\s*，即可在這裡獲得解答/i,
+      /查看\s*@.+\s*參與的最新對話/i,
+      /See\s*what\s*@.+\s*is\s*saying\s*on\s*Threads/i
+    ].some(pattern => pattern.test(normalizedText));
+  }
   function cleanExtractedPostContent(rawText) {
     if (!rawText || typeof rawText !== 'string') return '';
     let cleaned = rawText
@@ -1163,7 +1198,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
     return filteredLines.join('\n');
   }
   return new Promise((resolve) => {
-    const maxWaitMs = 3500;
+    const maxWaitMs = 6000;
     const startTime = Date.now();
     const check = () => {
       const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
@@ -1174,7 +1209,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
       let datetime = null;
       let title = '';
       let content = '';
-      const timeElement = requestedPostElement?.querySelector('time[datetime]') || null;
+      const timeElement = requestedPostElement?.querySelector('time[datetime]') || document.querySelector('time[datetime]') || null;
       if (timeElement) {
         datetime = timeElement.getAttribute('datetime');
         title = timeElement.getAttribute('title') || '';
@@ -1268,7 +1303,7 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
           }
         }
       }
-      if (requestedPostLink && [title, content].filter(Boolean).some(text => isLikelyThreadsFallbackDescription(text))) {
+      if (requestedPostLink && !datetime && content && isPlatformPlaceholderSummary(content)) {
         resolve(createExpiredPostResult('fallback-summary'));
         return true;
       }
@@ -1331,7 +1366,10 @@ async function extractPostInfoFromPage(requestedPostLink = '') {
         clearInterval(interval);
         if (Date.now() - startTime > maxWaitMs) {
           const requestedPostElement = requestedPostLink ? findPostElementFromPostLink(requestedPostLink) : null;
-          if (requestedPostLink && !requestedPostElement) {
+          const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
+          const isExplicitlyNotFound = /此頁面無法使用|此串文已被移除|This page isn't available|Page Not Found|Sorry, this page isn't available/i.test(bodyText) ||
+            /Page Not Found/i.test(document.title || '');
+          if (isExplicitlyNotFound || (requestedPostLink && !requestedPostElement)) {
             resolve(createExpiredPostResult('post-not-found'));
           } else {
             resolve(null);
@@ -1362,9 +1400,9 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
 }
 function extractThreadsPostIdFromLink(link) {
   if (!link || typeof link !== 'string') return '';
-  const normalizedLink = link.split('?')[0];
-  const match = normalizedLink.match(/\/(post|t)\/([^\/]+)$/i) || link.match(/\/(post|t)\/([^\/?]+)/i);
-  return match ? match[2] : '';
+  const cleanLink = link.split(/[?#]/)[0].replace(/\/+$/, '');
+  const match = cleanLink.match(/(?:\/|^)(?:post|t)\/([a-zA-Z0-9_-]+)/i);
+  return match ? match[1] : '';
 }
 function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);

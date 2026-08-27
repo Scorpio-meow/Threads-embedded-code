@@ -323,19 +323,27 @@ function findEmbedCodeTriggers() {
   return candidates.filter((element) => isElementVisible(element) && isEmbedTriggerElement(element));
 }
 function findPostElementFromPostLink(postLink) {
-  const match = postLink.match(/\/(post|t)\/([^\/\?]+)/i);
+  if (!postLink || typeof postLink !== 'string') return null;
+  const cleanLink = postLink.split(/[?#]/)[0].replace(/\/+$/, '');
+  const match = cleanLink.match(/(?:\/|^)(?:post|t)\/([a-zA-Z0-9_-]+)/i);
   if (!match) return null;
-  const postId = match[2];
+  const postId = match[1];
   const links = Array.from(
     document.querySelectorAll(`a[href*="/post/${postId}"], a[href*="/t/${postId}"]`)
   );
   for (const link of links) {
-    const pressable = link.closest('[data-pressable-container]');
+    const pressable = link.closest('[data-pressable-container]') ||
+                      link.closest('article') ||
+                      link.closest('div[data-pagelet]') ||
+                      link.closest('div[tabindex="-1"]');
     if (pressable) return pressable;
   }
   const timeEl = document.querySelector('time[datetime]');
   if (timeEl) {
-    const pressable = timeEl.closest('[data-pressable-container]');
+    const pressable = timeEl.closest('[data-pressable-container]') ||
+                      timeEl.closest('article') ||
+                      timeEl.closest('div[data-pagelet]') ||
+                      timeEl.closest('div[tabindex="-1"]');
     if (pressable) return pressable;
   }
   return null;

@@ -91,9 +91,9 @@ function extractThreadsPostIdFromLink(link) {
   if (!link || typeof link !== 'string') {
     return '';
   }
-  const normalizedLink = link.split('?')[0];
-  const match = normalizedLink.match(/\/(post|t)\/([^\/]+)$/i) || link.match(/\/(post|t)\/([^\/?]+)/i);
-  return match ? match[2] : '';
+  const cleanLink = link.split(/[?#]/)[0].replace(/\/+$/, '');
+  const match = cleanLink.match(/(?:\/|^)(?:post|t)\/([a-zA-Z0-9_-]+)/i);
+  return match ? match[1] : '';
 }
 function isSameThreadsPostLink(expectedLink, actualLink) {
   const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
