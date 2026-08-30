@@ -21,7 +21,9 @@
     {
       "matches": [
         "https://www.threads.com/*",
-        "https://threads.com/*"
+        "https://threads.com/*",
+        "https://www.threads.net/*",
+        "https://threads.net/*"
       ],
       "js": [
         "content.js"
@@ -29,6 +31,7 @@
       "css": [
         "styles.css"
       ],
+      "all_frames": true,
       "run_at": "document_idle"
     }
   ],

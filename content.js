@@ -41,7 +41,89 @@ async function safeStorageSet(obj) {
     throw err;
   }
 }
+function handleEmbedFrameResize() {
+  const getCardHeight = () => {
+    const embedEl = document.querySelector('.Embed') ||
+      document.querySelector('div[class*="Embed"]') ||
+      document.querySelector('div[id^="u_0_0_"] > div') ||
+      document.querySelector('div[id^="u_"] > div') ||
+      document.querySelector('div[id^="u_0_0_"]');
+    if (embedEl) {
+      const rect = embedEl.getBoundingClientRect();
+      const h = Math.ceil(rect.height || embedEl.offsetHeight || 0);
+      if (h > 50) {
+        return h;
+      }
+    }
+    const firstChild = document.body ? document.body.firstElementChild : null;
+    if (firstChild) {
+      const rect = firstChild.getBoundingClientRect();
+      const h = Math.ceil(rect.height || firstChild.offsetHeight || 0);
+      if (h > 50) {
+        return h;
+      }
+    }
+    return 0;
+  };
+  const notify = () => {
+    const h = getCardHeight();
+    if (h > 50) {
+      window.parent.postMessage({
+        type: 'THREADS_EMBED_RESIZE',
+        height: h
+      }, '*');
+    }
+  };
+  let ro = null;
+  if (window.ResizeObserver) {
+    ro = new ResizeObserver(() => {
+      notify();
+    });
+  }
+  const attachMediaListeners = () => {
+    document.querySelectorAll('img, video, canvas, picture').forEach(media => {
+      if (!media.__threadsObserved) {
+        media.__threadsObserved = true;
+        if (ro) {
+          try { ro.observe(media); } catch (_) { }
+        }
+        media.addEventListener('load', notify);
+        media.addEventListener('loadeddata', notify);
+        media.addEventListener('error', notify);
+      }
+    });
+  };
+  notify();
+  if (ro) {
+    const embedEl = document.querySelector('.Embed') || document.querySelector('div[id^="u_0_0_"]') || (document.body ? document.body.firstElementChild : null);
+    if (embedEl) ro.observe(embedEl);
+  }
+  attachMediaListeners();
+  const mo = new MutationObserver(() => {
+    const embedEl = document.querySelector('.Embed') || document.querySelector('div[id^="u_0_0_"]');
+    if (ro && embedEl) {
+      try { ro.observe(embedEl); } catch (_) { }
+    }
+    attachMediaListeners();
+    notify();
+  });
+  if (document.body) {
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+  }
+  window.addEventListener('load', () => {
+    attachMediaListeners();
+    notify();
+  });
+  [50, 150, 300, 600, 1000, 1500, 2500, 4000].forEach(delay => setTimeout(() => {
+    attachMediaListeners();
+    notify();
+  }, delay));
+}
 function init() {
+  if (location.pathname.includes('/embed') || window.self !== window.top) {
+    handleEmbedFrameResize();
+    return;
+  }
   console.log('[Threads Saver] 插件初始化');
   if (!document.body) {
     console.warn('[Threads Saver] document.body 不存在，延遲初始化');
@@ -333,17 +415,17 @@ function findPostElementFromPostLink(postLink) {
   );
   for (const link of links) {
     const pressable = link.closest('[data-pressable-container]') ||
-                      link.closest('article') ||
-                      link.closest('div[data-pagelet]') ||
-                      link.closest('div[tabindex="-1"]');
+      link.closest('article') ||
+      link.closest('div[data-pagelet]') ||
+      link.closest('div[tabindex="-1"]');
     if (pressable) return pressable;
   }
   const timeEl = document.querySelector('time[datetime]');
   if (timeEl) {
     const pressable = timeEl.closest('[data-pressable-container]') ||
-                      timeEl.closest('article') ||
-                      timeEl.closest('div[data-pagelet]') ||
-                      timeEl.closest('div[tabindex="-1"]');
+      timeEl.closest('article') ||
+      timeEl.closest('div[data-pagelet]') ||
+      timeEl.closest('div[tabindex="-1"]');
     if (pressable) return pressable;
   }
   return null;

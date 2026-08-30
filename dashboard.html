@@ -229,12 +229,6 @@
           <button class="preview-tab active" data-tab="embed">原生內嵌預覽</button>
           <button class="preview-tab" data-tab="raw">原始碼與中繼資料</button>
         </div>
-        <div class="preview-device-switcher" id="previewDeviceSwitcher">
-          <button class="device-btn active" data-width="658px" title="Threads 官方預設寬度 (658px)">官方預設 (658px)</button>
-          <button class="device-btn" data-width="480px" title="平板 (480px)">平板 (480px)</button>
-          <button class="device-btn" data-width="320px" title="手機 / 官方最小寬度 (320px)">手機 (320px)</button>
-          <button class="device-btn" data-width="100%" title="自適應 100%">自適應 (100%)</button>
-        </div>
       </div>
       <div class="preview-modal-body">
         <div class="preview-pane active" id="paneEmbed">
@@ -243,7 +237,7 @@
               <div class="spinner"></div>
               <span>正在載入 Threads 原生內嵌元件...</span>
             </div>
-            <iframe id="previewIframe" class="preview-iframe" src="about:blank" title="Threads 貼文即時預覽框架"></iframe>
+            <iframe id="previewIframe" class="preview-iframe" src="about:blank" scrolling="no" title="Threads 貼文即時預覽框架"></iframe>
           </div>
         </div>
         <div class="preview-pane" id="paneRaw">

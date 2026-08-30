@@ -13,7 +13,6 @@ let importModalResolve = null;
 let currentPreviewIndex = -1;
 let currentPreviewArticle = null;
 let currentPreviewTab = 'embed';
-let currentPreviewDeviceWidth = '658px';
 document.addEventListener('DOMContentLoaded', async () => {
   await loadArticles();
   setupEventListeners();
@@ -1717,12 +1716,6 @@ function setupPreviewModalListeners() {
       switchPreviewTab(tabName);
     });
   });
-  document.querySelectorAll('.device-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const width = btn.dataset.width;
-      setPreviewDeviceWidth(width);
-    });
-  });
   if (previewModal) {
     previewModal.addEventListener('click', (e) => {
       if (e.target === previewModal) {
@@ -1733,15 +1726,32 @@ function setupPreviewModalListeners() {
   window.addEventListener('message', (event) => {
     if (!isAllowedEmbedOrigin(event.origin)) return;
     try {
-      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      if (data) {
+      let data = event.data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (_) { }
+      }
+      if (data && typeof data === 'object') {
         let targetHeight = 0;
-        if (data.type === 'MEASURE' && data.details && data.details.height) {
-          targetHeight = Number(data.details.height);
+        let details = data.details;
+        if (typeof details === 'string') {
+          try {
+            details = JSON.parse(details);
+          } catch (_) { }
+        }
+        if (data.type === 'THREADS_EMBED_RESIZE' && data.height) {
+          targetHeight = Number(data.height);
+        } else if (data.type === 'MEASURE' && details && details.height) {
+          targetHeight = Number(details.height);
+        } else if (details && details.height) {
+          targetHeight = Number(details.height);
         } else if (data.height) {
           targetHeight = Number(data.height);
+        } else if (data.scrollHeight) {
+          targetHeight = Number(data.scrollHeight);
         }
-        if (targetHeight > 150 && targetHeight < 4000) {
+        if (targetHeight > 100 && targetHeight < 5000) {
           const iframe = document.getElementById('previewIframe');
           if (iframe) {
             iframe.style.height = `${targetHeight}px`;
@@ -1775,7 +1785,6 @@ function openPreviewModal(articleId) {
   const modal = document.getElementById('previewModal');
   if (!modal) return;
   modal.classList.add('active');
-  setPreviewDeviceWidth(currentPreviewDeviceWidth);
   renderPreviewModalContent();
 }
 function closePreviewModal() {
@@ -1803,10 +1812,6 @@ function switchPreviewTab(tabName) {
   document.querySelectorAll('.preview-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabName);
   });
-  const deviceSwitcher = document.getElementById('previewDeviceSwitcher');
-  if (deviceSwitcher) {
-    deviceSwitcher.style.display = (tabName === 'embed') ? 'flex' : 'none';
-  }
   document.querySelectorAll('.preview-pane').forEach(p => p.classList.remove('active'));
   if (tabName === 'embed') {
     document.getElementById('paneEmbed')?.classList.add('active');
@@ -1814,22 +1819,6 @@ function switchPreviewTab(tabName) {
     document.getElementById('paneRaw')?.classList.add('active');
   }
   renderPreviewModalContent();
-}
-function setPreviewDeviceWidth(width) {
-  currentPreviewDeviceWidth = width;
-  document.querySelectorAll('.device-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.width === width);
-  });
-  const wrapper = document.getElementById('previewIframeWrapper');
-  if (wrapper) {
-    if (width === '100%') {
-      wrapper.style.width = '100%';
-      wrapper.style.maxWidth = '100%';
-    } else {
-      wrapper.style.width = width;
-      wrapper.style.maxWidth = '100%';
-    }
-  }
 }
 function renderPreviewModalContent() {
   if (!currentPreviewArticle) return;
@@ -1876,7 +1865,7 @@ function renderEmbedPane(article) {
   const spinner = document.getElementById('previewLoadingSpinner');
   if (!iframe) return;
   if (spinner) spinner.style.opacity = '1';
-  iframe.style.height = '540px';
+  iframe.style.height = '360px';
   const embedUrl = getThreadsEmbedUrl(article.postLink);
   if (embedUrl) {
     iframe.src = sanitizeUrl(embedUrl);
