@@ -361,10 +361,6 @@ function sortArticles() {
         valueA = (a.author || '').toLowerCase();
         valueB = (b.author || '').toLowerCase();
         break;
-      case 'codeCount':
-        valueA = a.codeCount ?? (a.codeBlocks || []).length;
-        valueB = b.codeCount ?? (b.codeBlocks || []).length;
-        break;
       default:
         valueA = parseDate(a.savedAt);
         valueB = parseDate(b.savedAt);
