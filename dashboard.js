@@ -205,6 +205,7 @@ function setupEventListeners() {
     showToast('正在停止更新作業...');
   });
   document.getElementById('clearBtn').addEventListener('click', clearAllArticles);
+  document.getElementById('batchUpdateBtn')?.addEventListener('click', updateAllTimestamps);
   document.getElementById('batchCopyEmbedBtn').addEventListener('click', batchCopyEmbedCodes);
   document.getElementById('batchDeleteBtn').addEventListener('click', batchDeleteArticles);
 }
@@ -1429,12 +1430,22 @@ function formatTime(isoString) {
     day: 'numeric'
   });
 }
+function getExportTargetArticles() {
+  if (selectedArticleIds.size > 0) {
+    const selectedList = filteredArticles.filter(a => selectedArticleIds.has(a.id));
+    return selectedList.length === selectedArticleIds.size
+      ? selectedList
+      : allArticles.filter(a => selectedArticleIds.has(a.id));
+  }
+  return filteredArticles;
+}
 async function exportAllEmbedCodes() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有內嵌程式碼可以匯出');
     return;
   }
-  const articlesWithEmbed = filteredArticles.filter(a => a.embedCode);
+  const articlesWithEmbed = targetArticles.filter(a => a.embedCode);
   if (articlesWithEmbed.length === 0) {
     showToast('沒有內嵌程式碼可以匯出');
     return;
@@ -1454,14 +1465,16 @@ async function exportAllEmbedCodes() {
   }).join(',\n');
   const jsContent = `const posts = [\n${postsArray}\n];`;
   downloadFile(jsContent, `threads-embed-codes-${new Date().toISOString().split('T')[0]}.js`, 'text/javascript');
-  showToast(`已匯出 ${articlesWithEmbed.length} 個內嵌程式碼`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${articlesWithEmbed.length} 個內嵌程式碼`);
 }
 async function exportFeaturedData() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有資料可以匯出');
     return;
   }
-  const exportData = filteredArticles.map((article) => {
+  const exportData = targetArticles.map((article) => {
     let blockquoteOnly = article.embedCode || '';
     let previous;
     do {
@@ -1483,14 +1496,16 @@ async function exportFeaturedData() {
   });
   const jsContent = `const posts = ${JSON.stringify(exportData, null, 4)};`;
   downloadFile(jsContent, `threads-featured-data-${new Date().toISOString().split('T')[0]}.js`, 'text/javascript');
-  showToast(`已匯出 ${exportData.length} 筆精選格式資料`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${exportData.length} 筆精選格式資料`);
 }
 async function exportFullData() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有資料可以匯出');
     return;
   }
-  const exportData = filteredArticles.map((article) => {
+  const exportData = targetArticles.map((article) => {
     let blockquoteOnly = article.embedCode || '';
     let previous;
     do {
@@ -1515,7 +1530,8 @@ async function exportFullData() {
   });
   const jsContent = `const posts = ${JSON.stringify(exportData, null, 4)};`;
   downloadFile(jsContent, `threads-full-data-${new Date().toISOString().split('T')[0]}.js`, 'text/javascript');
-  showToast(`已匯出 ${exportData.length} 筆完整資料`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${exportData.length} 筆完整資料`);
 }
 function downloadFile(content, fileName, contentType) {
   const blob = new Blob([content], { type: `${contentType};charset=utf-8` });

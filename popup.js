@@ -687,12 +687,22 @@ async function copyEmbed(articleId) {
     showToast('複製失敗: ' + err.message);
   }
 }
+function getExportTargetArticles() {
+  if (selectedArticleIds.size > 0) {
+    const selectedList = filteredArticles.filter(a => selectedArticleIds.has(a.id));
+    return selectedList.length === selectedArticleIds.size
+      ? selectedList
+      : allArticles.filter(a => selectedArticleIds.has(a.id));
+  }
+  return filteredArticles;
+}
 async function exportAllEmbedCodes() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有內嵌程式碼可以匯出');
     return;
   }
-  const articlesWithEmbed = filteredArticles.filter(a => a.embedCode);
+  const articlesWithEmbed = targetArticles.filter(a => a.embedCode);
   if (articlesWithEmbed.length === 0) {
     showToast('沒有內嵌程式碼可以匯出');
     return;
@@ -718,14 +728,16 @@ async function exportAllEmbedCodes() {
   link.download = `threads-embed-codes-${new Date().toISOString().split('T')[0]}.js`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast(`已匯出 ${articlesWithEmbed.length} 個內嵌程式碼`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${articlesWithEmbed.length} 個內嵌程式碼`);
 }
 async function exportFeaturedData() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有資料可以匯出');
     return;
   }
-  const exportData = filteredArticles.map((article) => {
+  const exportData = targetArticles.map((article) => {
     let blockquoteOnly = article.embedCode || '';
     let previous;
     do {
@@ -753,14 +765,16 @@ async function exportFeaturedData() {
   link.download = `threads-featured-data-${new Date().toISOString().split('T')[0]}.js`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast(`已匯出 ${exportData.length} 筆精選格式資料`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${exportData.length} 筆精選格式資料`);
 }
 async function exportFullData() {
-  if (filteredArticles.length === 0) {
+  const targetArticles = getExportTargetArticles();
+  if (targetArticles.length === 0) {
     showToast('沒有資料可以匯出');
     return;
   }
-  const exportData = filteredArticles.map((article) => {
+  const exportData = targetArticles.map((article) => {
     let blockquoteOnly = article.embedCode || '';
     let previous;
     do {
@@ -791,7 +805,8 @@ async function exportFullData() {
   link.download = `threads-full-data-${new Date().toISOString().split('T')[0]}.js`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast(`已匯出 ${exportData.length} 筆完整資料`);
+  const isSelected = selectedArticleIds.size > 0;
+  showToast(`已匯出 ${isSelected ? '已選取的 ' : ''}${exportData.length} 筆完整資料`);
 }
 async function handleImportFile(event) {
   const file = event.target.files[0];
