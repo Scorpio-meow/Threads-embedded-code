@@ -27,6 +27,7 @@
     </div>
   </div>
   <div class="search-box">
+    <label class="sr-only" for="searchInput">搜尋已儲存的程式碼</label>
     <input type="text" id="searchInput" placeholder="搜尋程式碼、語言或作者...">
   </div>
   <div class="controls">
@@ -65,11 +66,22 @@
         </select>
       </div>
     </div>
-    <button class="btn btn-export" id="exportBtn" title="匯出簡易版 (embed code only)">匯出</button>
-    <button class="btn btn-export" id="exportFeaturedBtn" title="匯出精選貼文格式 (用於 Featured Posts)">精選匯出</button>
-    <button class="btn btn-export" id="exportFullBtn" title="匯出完整版 (含時間/作者/內容)">完整匯出</button>
-    <button class="btn btn-export" id="importBtn">匯入</button>
-    <button class="btn btn-clear" id="clearBtn">清除全部</button>
+    <div class="action-group" role="group" aria-label="匯出與匯入">
+      <span class="action-group-label">資料</span>
+      <button class="btn btn-export" id="exportBtn">
+        匯出<span class="btn-hint">僅嵌入碼</span>
+      </button>
+      <button class="btn btn-export" id="exportFeaturedBtn">
+        匯出<span class="btn-hint">精選格式</span>
+      </button>
+      <button class="btn btn-export" id="exportFullBtn">
+        匯出<span class="btn-hint">完整備份</span>
+      </button>
+      <button class="btn btn-export" id="importBtn">匯入</button>
+    </div>
+    <div class="action-group action-group-danger" role="group" aria-label="危險操作">
+      <button class="btn btn-clear" id="clearBtn">清除全部</button>
+    </div>
   </div>
   <div class="content" id="articlesContainer">
     <div class="empty-state">
@@ -80,6 +92,92 @@
       <p class="empty-help">在 Threads 含程式碼的文章旁點擊儲存按鈕</p>
     </div>
   </div>
+  <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle"
+    aria-describedby="confirmModalMessage" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="confirmModalTitle">確認操作</h2>
+        <button class="modal-close-btn" id="confirmModalCloseBtn" aria-label="關閉對話框">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="confirmModalCancelBtn">取消</button>
+        <button class="btn btn-clear" id="confirmModalConfirmBtn">確定</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="importSourceModal" role="dialog" aria-modal="true"
+    aria-labelledby="importSourceModalTitle" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="importSourceModalTitle">匯入資料</h2>
+        <button class="modal-close-btn" id="importSourceCloseBtn" aria-label="關閉對話框">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>請選擇資料來源：</p>
+        <div class="choice-list">
+          <button class="choice-option" id="importSourceFileBtn">
+            <span class="choice-title">選擇檔案</span>
+            <span class="choice-desc">從電腦讀取先前匯出的 .js 或 .json 備份檔。</span>
+          </button>
+          <button class="choice-option" id="importSourcePasteBtn">
+            <span class="choice-title">貼上內容</span>
+            <span class="choice-desc">直接貼上匯出檔的文字內容。</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="importSourceCancelBtn">取消</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="importPasteModal" role="dialog" aria-modal="true"
+    aria-labelledby="importPasteModalTitle" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="importPasteModalTitle">貼上匯入內容</h2>
+        <button class="modal-close-btn" id="importPasteCloseBtn" aria-label="關閉對話框">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="importPasteTextarea">匯入內容 (JS / JSON)</label>
+        <textarea id="importPasteTextarea" class="paste-textarea" rows="8" placeholder="在此貼上匯出檔的完整內容..."></textarea>
+        <p class="field-error is-hidden" id="importPasteError" role="alert"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="importPasteCancelBtn">取消</button>
+        <button class="btn btn-dashboard" id="importPasteNextBtn">下一步</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="importModeModal" role="dialog" aria-modal="true" aria-labelledby="importModeModalTitle"
+    aria-describedby="importModeModalMessage" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="importModeModalTitle">選擇匯入方式</h2>
+        <button class="modal-close-btn" id="importModeCloseBtn" aria-label="關閉對話框">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="importModeModalMessage"></p>
+        <div class="choice-list">
+          <button class="choice-option" id="importModeMergeBtn">
+            <span class="choice-title">合併資料<span class="choice-tag">推薦</span></span>
+            <span class="choice-desc">只加入尚未存在的貼文，現有資料完全保留。</span>
+          </button>
+          <button class="choice-option choice-option-danger" id="importModeOverwriteBtn">
+            <span class="choice-title">完全覆寫</span>
+            <span class="choice-desc">刪除目前全部貼文，改以匯入的內容取代。此動作無法復原。</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="importModeCancelBtn">取消匯入</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="false"></div>
+  <input type="file" id="importFileInput" accept=".js,.json" class="is-hidden" title="匯入資料檔案">
   <script src="popup.js"></script>
 </body>
 

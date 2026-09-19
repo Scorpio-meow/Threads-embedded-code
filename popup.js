@@ -1,3 +1,5 @@
+const SEARCH_DEBOUNCE_MS = 180;
+let searchDebounceTimer = null;
 let allArticles = [];
 let filteredArticles = [];
 let currentSort = 'savedAt-desc';
@@ -30,42 +32,6 @@ function refreshEmbedCode(articleId) {
   });
   return true;
 }
-function refreshAllEmbedCodes() {
-  const targetArticles = selectedArticleIds.size > 0
-    ? allArticles.filter(a => selectedArticleIds.has(a.id))
-    : allArticles;
-  if (targetArticles.length === 0) {
-    showToast('沒有文章可以重新生成');
-    return;
-  }
-  const selectionText = selectedArticleIds.size > 0 ? '選取的' : '全部';
-  if (!confirm(`確定要重新生成${selectionText} ${targetArticles.length} 篇文章的嵌入代碼嗎？`)) {
-    return;
-  }
-  showToast(`正在重新生成 ${targetArticles.length} 篇文章...`);
-  let successCount = 0;
-  let failCount = 0;
-  targetArticles.forEach(article => {
-    if (!article.postLink) {
-      failCount++;
-      return;
-    }
-    const newEmbedCode = buildThreadsEmbedCode(article.postLink);
-    if (newEmbedCode) {
-      article.embedCode = newEmbedCode;
-      article.lastUpdated = new Date().toISOString();
-      successCount++;
-    } else {
-      failCount++;
-    }
-  });
-  chrome.storage.local.set({ savedArticles: allArticles }).then(() => {
-    filteredArticles = [...allArticles];
-    sortArticles();
-    renderArticles();
-    showToast(`完成！成功: ${successCount}, 失敗: ${failCount}`);
-  });
-}
 function buildThreadsEmbedCode(postLink) {
   if (!postLink) return '';
   const match = postLink.match(/\/(post|t)\/([^\/\?]+)/);
@@ -87,33 +53,8 @@ function sanitizeUrl(rawUrl, base = 'https://www.threads.com') {
     return '#';
   }
 }
-function extractThreadsPostIdFromLink(link) {
-  if (!link || typeof link !== 'string') {
-    return '';
-  }
-  const cleanLink = link.split(/[?#]/)[0].replace(/\/+$/, '');
-  const match = cleanLink.match(/(?:\/|^)(?:post|t)\/([a-zA-Z0-9_-]+)/i);
-  return match ? match[1] : '';
-}
-function isSameThreadsPostLink(expectedLink, actualLink) {
-  const expectedPostId = extractThreadsPostIdFromLink(expectedLink);
-  const actualPostId = extractThreadsPostIdFromLink(actualLink);
-  return !!expectedPostId && !!actualPostId && expectedPostId === actualPostId;
-}
 function isExpiredArticle(article) {
   return article?.status === 'expired' || !!article?.expiredAt || !!article?.expiredReason;
-}
-function markArticleAsExpired(article, reason) {
-  article.status = 'expired';
-  article.expiredAt = article.expiredAt || new Date().toISOString();
-  article.expiredReason = reason || article.expiredReason || 'unknown';
-  article.expiredCheckedAt = new Date().toISOString();
-}
-function clearArticleExpiredStatus(article) {
-  article.status = 'active';
-  delete article.expiredAt;
-  delete article.expiredReason;
-  delete article.expiredCheckedAt;
 }
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', async () => {
@@ -136,8 +77,11 @@ function setupEventListeners() {
       chrome.tabs.create({ url: 'dashboard.html' });
     });
   }
-  document.getElementById('searchInput').addEventListener('input', (e) => {
-    applyFilters();
+  document.getElementById('searchInput').addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      applyFilters();
+    }, SEARCH_DEBOUNCE_MS);
   });
   const filterSelect = document.getElementById('filterSelect');
   if (filterSelect) {
@@ -165,75 +109,54 @@ function setupEventListeners() {
     exportFullBtn.addEventListener('click', exportFullData);
   }
   document.getElementById('importBtn').addEventListener('click', async () => {
-    const existingInput = document.getElementById('importFileInput');
-    if (existingInput) {
-      existingInput.click();
+    const source = await showImportSourceChoice();
+    if (source === 'file') {
+      const fileInput = document.getElementById('importFileInput');
+      if (fileInput) fileInput.click();
       return;
     }
-    const chooseFile = confirm('要從檔案匯入？按「確定」選擇檔案，按「取消」貼上內容');
-    if (chooseFile) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.js,.json';
-      input.style.display = 'none';
-      input.id = 'importFileInput';
-      input.addEventListener('change', async (event) => {
-        try {
-          await handleImportFile(event);
-        } finally {
-          setTimeout(() => {
-            if (input && input.parentNode) input.parentNode.removeChild(input);
-          }, 200);
-        }
-      });
-      document.body.appendChild(input);
-      input.click();
-    } else {
-      const text = prompt('請貼上匯入內容 (JS/JSON)：');
-      if (!text) {
-        showToast('未貼上內容');
+    if (source !== 'paste') return;
+    const text = await showImportPasteDialog();
+    if (!text) return;
+    try {
+      const imported = parseJsEmbedFile(text);
+      if (!imported || imported.length === 0) {
+        showToast('未辨識到任何匯入項目', { type: 'error' });
         return;
       }
-      try {
-        const imported = parseJsEmbedFile(text);
-        if (!imported || imported.length === 0) {
-          showToast('未辨識到任何匯入項目');
+      const mode = await showImportModeChoice(imported.length);
+      if (!mode) {
+        showToast('已取消匯入');
+        return;
+      }
+      const result = await chrome.storage.local.get(['savedArticles']);
+      let savedArticles = result.savedArticles || [];
+      if (mode === 'merge') {
+        const existingLinks = new Set(savedArticles.map(a => a.postLink));
+        const newArticles = imported.filter(a => !existingLinks.has(a.postLink));
+        if (newArticles.length === 0) {
+          showToast('所有項目都已存在，無需匯入');
           return;
         }
-        const importMode = confirm(
-          `找到 ${imported.length} 筆資料。
-\n按「確定」合併到現有資料（跳過重複項目）
-按「取消」取代所有現有資料`
-        );
-        const result = await chrome.storage.local.get(['savedArticles']);
-        let savedArticles = result.savedArticles || [];
-        if (importMode) {
-          const existingLinks = new Set(savedArticles.map(a => a.postLink));
-          const newArticles = imported.filter(a => !existingLinks.has(a.postLink));
-          if (newArticles.length === 0) {
-            showToast('所有項目都已存在，無需匯入');
-          } else {
-            savedArticles = [...savedArticles, ...newArticles];
-            await chrome.storage.local.set({ savedArticles });
-            allArticles = savedArticles;
-            filteredArticles = [...allArticles];
-            sortArticles();
-            renderArticles();
-            showToast(`已匯入 ${newArticles.length} 筆新資料（跳過 ${imported.length - newArticles.length} 筆重複）`);
-          }
-        } else {
-          savedArticles = imported;
-          await chrome.storage.local.set({ savedArticles });
-          allArticles = savedArticles;
-          filteredArticles = [...allArticles];
-          sortArticles();
-          renderArticles();
-          showToast(`已匯入 ${imported.length} 筆資料（取代原有資料）`);
-        }
-      } catch (err) {
-        console.error('[Popup] paste import error', err);
-        showToast('貼上匯入失敗: ' + (err.message || '未知錯誤'));
+        savedArticles = [...savedArticles, ...newArticles];
+        await chrome.storage.local.set({ savedArticles });
+        allArticles = savedArticles;
+        filteredArticles = [...allArticles];
+        sortArticles();
+        renderArticles();
+        showToast(`已匯入 ${newArticles.length} 筆新資料（跳過 ${imported.length - newArticles.length} 筆重複）`);
+      } else {
+        savedArticles = imported;
+        await chrome.storage.local.set({ savedArticles });
+        allArticles = savedArticles;
+        filteredArticles = [...allArticles];
+        sortArticles();
+        renderArticles();
+        showToast(`已匯入 ${imported.length} 筆資料（取代原有資料）`);
       }
+    } catch (err) {
+      console.error('[Popup] paste import error', err);
+      showToast('貼上匯入失敗: ' + (err.message || '未知錯誤'), { type: 'error' });
     }
   });
   const importFileInput = document.getElementById('importFileInput');
@@ -268,12 +191,8 @@ function applyFilters() {
       const contentMatch = (article.content || '').toLowerCase().includes(searchTerm);
       const authorMatch = (article.author || '').toLowerCase().includes(searchTerm);
       const tagsMatch = (article.tags || []).some(tag => (tag || '').toLowerCase().includes(searchTerm));
-      const codeMatch = (article.codeBlocks || []).some(block =>
-        (block.code || '').toLowerCase().includes(searchTerm) ||
-        (block.language || '').toLowerCase().includes(searchTerm)
-      );
       const embedMatch = (article.embedCode || '').toLowerCase().includes(searchTerm);
-      return contentMatch || authorMatch || tagsMatch || codeMatch || embedMatch;
+      return contentMatch || authorMatch || tagsMatch || embedMatch;
     }
     return true;
   });
@@ -461,39 +380,6 @@ function renderArticles() {
       });
       card.appendChild(tagsContainer);
     }
-    if (article.codeBlocks && article.codeBlocks.length > 0) {
-      const blocksContainer = document.createElement('div');
-      blocksContainer.className = 'code-blocks';
-      article.codeBlocks.forEach((block, idx) => {
-        const blockEl = document.createElement('div');
-        blockEl.className = 'code-block';
-        const headerEl = document.createElement('div');
-        headerEl.className = 'code-header';
-        const langSpan = document.createElement('span');
-        langSpan.className = 'code-language';
-        langSpan.textContent = block.language || '';
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'code-copy-btn';
-        copyBtn.setAttribute('data-article-id', article.id);
-        copyBtn.setAttribute('data-index', String(idx));
-        copyBtn.textContent = '複製';
-        headerEl.appendChild(langSpan);
-        headerEl.appendChild(copyBtn);
-        const blockContent = document.createElement('div');
-        blockContent.className = 'code-content';
-        const blockPre = document.createElement('pre');
-        blockPre.style.margin = '0';
-        const blockCode = document.createElement('code');
-        const codeText = (block.code || '').substring(0, 500) + ((block.code || '').length > 500 ? '\n...' : '');
-        blockCode.textContent = codeText;
-        blockPre.appendChild(blockCode);
-        blockContent.appendChild(blockPre);
-        blockEl.appendChild(headerEl);
-        blockEl.appendChild(blockContent);
-        blocksContainer.appendChild(blockEl);
-      });
-      card.appendChild(blocksContainer);
-    }
     const actions = document.createElement('div');
     actions.className = 'article-actions';
     const link = document.createElement('a');
@@ -534,13 +420,6 @@ function renderArticles() {
     btn.addEventListener('click', () => {
       const articleId = btn.dataset.articleId;
       deleteArticle(articleId);
-    });
-  });
-  container.querySelectorAll('.code-copy-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const articleId = btn.dataset.articleId;
-      const index = parseInt(btn.dataset.index);
-      copyCodeBlock(articleId, index);
     });
   });
   container.querySelectorAll('.article-checkbox').forEach(checkbox => {
@@ -613,19 +492,22 @@ function formatTime(isoString) {
     day: 'numeric'
   });
 }
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 async function deleteArticle(articleId) {
   console.log('[Popup] deleteArticle called with ID:', articleId);
-  if (!confirm('確定要刪除這篇文章嗎?')) return;
-  allArticles = allArticles.filter(article => article.id !== articleId);
+  const article = allArticles.find(a => a.id === articleId);
+  if (!article) return;
+  const snapshot = [...allArticles];
+  allArticles = allArticles.filter(a => a.id !== articleId);
   await chrome.storage.local.set({ savedArticles: allArticles });
-  filteredArticles = filteredArticles.filter(article => article.id !== articleId);
+  filteredArticles = filteredArticles.filter(a => a.id !== articleId);
+  selectedArticleIds.delete(articleId);
   renderArticles();
-  showToast('已刪除');
+  showUndoToast('已刪除 1 篇貼文', async () => {
+    allArticles = snapshot;
+    await chrome.storage.local.set({ savedArticles: allArticles });
+    applyFilters();
+    showToast('已復原');
+  });
 }
 if (typeof window !== 'undefined') {
   window.copyArticle = async function (articleId) {
@@ -635,35 +517,6 @@ if (typeof window !== 'undefined') {
     try {
       await navigator.clipboard.writeText(textToCopy);
       showToast('已複製到剪貼簿');
-    } catch (err) {
-      console.error('複製失敗:', err);
-    }
-  };
-}
-async function copyCodeBlock(articleId, blockIndex) {
-  console.log('[Popup] copyCodeBlock called:', articleId, blockIndex);
-  const article = allArticles.find(a => a.id === articleId);
-  if (!article || !article.codeBlocks || !article.codeBlocks[blockIndex]) return;
-  const codeBlock = article.codeBlocks[blockIndex];
-  try {
-    await navigator.clipboard.writeText(codeBlock.code);
-    showToast('已複製程式碼');
-  } catch (err) {
-    console.error('複製程式碼失敗:', err);
-    showToast('複製失敗');
-  }
-}
-if (typeof window !== 'undefined') {
-  window.copyAllCode = async function (articleId) {
-    const article = allArticles.find(a => a.id === articleId);
-    if (!article || !article.codeBlocks || article.codeBlocks.length === 0) return;
-    const allCode = article.codeBlocks.map((block, idx) =>
-      `// --- ${block.language.toUpperCase()} (Block ${idx + 1}) ---\n${block.code}`
-    ).join('\n\n');
-    const textToCopy = `${article.author}\n${article.postLink}\n\n${allCode}`;
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      showToast(`已複製 ${article.codeBlocks.length} 個程式碼區塊`);
     } catch (err) {
       console.error('複製失敗:', err);
     }
@@ -828,15 +681,15 @@ async function handleImportFile(event) {
       importedArticles = parseJsEmbedFile(content);
     }
     if (importedArticles.length === 0) {
-      showToast('檔案中沒有可匯入的資料');
+      showToast('檔案中沒有可匯入的資料', { type: 'error' });
       return;
     }
-    const importMode = confirm(
-      `找到 ${importedArticles.length} 筆資料。\n\n` +
-      `按「確定」合併到現有資料（跳過重複項目）\n` +
-      `按「取消」取代所有現有資料`
-    );
-    if (importMode) {
+    const mode = await showImportModeChoice(importedArticles.length);
+    if (!mode) {
+      showToast('已取消匯入');
+      return;
+    }
+    if (mode === 'merge') {
       const existingLinks = new Set(allArticles.map(a => a.postLink));
       const newArticles = importedArticles.filter(a => !existingLinks.has(a.postLink));
       if (newArticles.length === 0) {
@@ -854,12 +707,12 @@ async function handleImportFile(event) {
     renderArticles();
   } catch (err) {
     console.error('[Popup] 匯入失敗:', err);
-    showToast('匯入失敗：' + (err.message || '檔案格式錯誤'));
+    showToast('匯入失敗：' + (err.message || '檔案格式錯誤'), { type: 'error' });
   } finally {
     try {
       const target = event && event.target;
-      if (target && target.id === 'importFileInput' && target.parentNode) {
-        target.parentNode.removeChild(target);
+      if (target && target.id === 'importFileInput') {
+        target.value = '';
       }
     } catch (e) { }
   }
@@ -891,8 +744,6 @@ function parseJsEmbedFile(content) {
             return {
               id: item.id || `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               content: item.content || '',
-              codeBlocks: item.codeBlocks || [],
-              codeCount: item.codeCount || 0,
               author: item.author || '',
               authorUrl: item.authorUrl || '',
               postLink: item.postLink || '',
@@ -933,8 +784,6 @@ function parseJsEmbedFile(content) {
         articles.push({
           id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           content: '',
-          codeBlocks: [],
-          codeCount: 0,
           author: username,
           authorUrl: usernameMatch ? `https://www.threads.com/@${usernameMatch[1]}` : '',
           postLink: postLink,
@@ -951,37 +800,260 @@ function parseJsEmbedFile(content) {
 }
 async function clearAllArticles() {
   if (allArticles.length === 0) {
-    alert('沒有文章可以清除');
+    showToast('目前沒有文章可以清除');
     return;
   }
-  if (!confirm(`確定要清除全部 ${allArticles.length} 篇文章嗎？此操作無法復原！`)) {
-    return;
-  }
+  const confirmed = await showConfirm(
+    '清除全部資料',
+    `這會刪除已儲存的全部 ${allArticles.length} 篇貼文。此動作無法復原，建議先執行「匯出完整備份」。`,
+    { confirmText: '清除全部' }
+  );
+  if (!confirmed) return;
+  const snapshot = [...allArticles];
   await chrome.storage.local.set({ savedArticles: [] });
   allArticles = [];
   filteredArticles = [];
+  selectedArticleIds.clear();
   renderArticles();
-  showToast('已清除所有文章');
+  showUndoToast(`已清除 ${snapshot.length} 篇貼文`, async () => {
+    allArticles = snapshot;
+    await chrome.storage.local.set({ savedArticles: allArticles });
+    applyFilters();
+    showToast('已復原全部貼文');
+  });
 }
-function showToast(message) {
+function showToast(message, options = {}) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const isError = options.type === 'error';
   const toast = document.createElement('div');
-  toast.style.cssText = `
-    position: fixed;
-    top: 70px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #000;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 13px;
-    z-index: 1000;
-    animation: fadeIn 0.2s ease;
-  `;
+  toast.className = isError ? 'toast toast-error' : 'toast';
   toast.textContent = message;
-  document.body.appendChild(toast);
+  container.appendChild(toast);
+  const duration = options.duration || (isError ? 5000 : 2500);
   setTimeout(() => {
-    toast.style.animation = 'fadeOut 0.2s ease';
-    setTimeout(() => toast.remove(), 200);
-  }, 2000);
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, duration);
+}
+function showUndoToast(message, onUndo, duration = 8000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  container.querySelectorAll('.toast-undo').forEach(el => el.remove());
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-undo';
+  const text = document.createElement('span');
+  text.textContent = message;
+  const undoBtn = document.createElement('button');
+  undoBtn.className = 'toast-undo-btn';
+  undoBtn.type = 'button';
+  undoBtn.textContent = '復原';
+  let settled = false;
+  const dismiss = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  };
+  undoBtn.addEventListener('click', async () => {
+    if (settled) return;
+    dismiss();
+    await onUndo();
+  });
+  toast.appendChild(text);
+  toast.appendChild(undoBtn);
+  container.appendChild(toast);
+  const timer = setTimeout(dismiss, duration);
+}
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+let activeModal = null;
+let modalReturnFocus = null;
+let modalDismiss = null;
+function getFocusableElements(modal) {
+  return Array.from(modal.querySelectorAll(FOCUSABLE_SELECTOR))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+}
+function handleModalKeydown(e) {
+  if (!activeModal) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (modalDismiss) modalDismiss();
+    return;
+  }
+  if (e.key !== 'Tab') return;
+  const focusable = getFocusableElements(activeModal);
+  if (focusable.length === 0) {
+    e.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+function openModal(modalId, { initialFocusId, onDismiss } = {}) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return null;
+  modalReturnFocus = document.activeElement;
+  activeModal = modal;
+  modalDismiss = onDismiss || null;
+  modal.hidden = false;
+  document.addEventListener('keydown', handleModalKeydown, true);
+  requestAnimationFrame(() => {
+    modal.classList.add('active');
+    if (activeModal !== modal) return;
+    const initial = initialFocusId ? document.getElementById(initialFocusId) : null;
+    const target = initial || getFocusableElements(modal)[0];
+    if (target) target.focus();
+  });
+  return modal;
+}
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.hidden = true;
+  if (activeModal === modal) {
+    document.removeEventListener('keydown', handleModalKeydown, true);
+    activeModal = null;
+    modalDismiss = null;
+    if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') {
+      modalReturnFocus.focus();
+    }
+    modalReturnFocus = null;
+  }
+}
+function showConfirm(title, message, { confirmText = '確定', danger = true } = {}) {
+  return new Promise(resolve => {
+    const titleEl = document.getElementById('confirmModalTitle');
+    const messageEl = document.getElementById('confirmModalMessage');
+    const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+    const cancelBtn = document.getElementById('confirmModalCancelBtn');
+    const closeBtn = document.getElementById('confirmModalCloseBtn');
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    confirmBtn.textContent = confirmText;
+    confirmBtn.className = danger ? 'btn btn-clear' : 'btn btn-dashboard';
+    const settle = (result) => {
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+      closeModal('confirmModal');
+      resolve(result);
+    };
+    const onConfirm = () => settle(true);
+    const onCancel = () => settle(false);
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn.addEventListener('click', onCancel);
+    openModal('confirmModal', { initialFocusId: 'confirmModalCancelBtn', onDismiss: onCancel });
+  });
+}
+function showImportSourceChoice() {
+  return new Promise(resolve => {
+    const fileBtn = document.getElementById('importSourceFileBtn');
+    const pasteBtn = document.getElementById('importSourcePasteBtn');
+    const cancelBtn = document.getElementById('importSourceCancelBtn');
+    const closeBtn = document.getElementById('importSourceCloseBtn');
+    const settle = (result) => {
+      fileBtn.removeEventListener('click', onFile);
+      pasteBtn.removeEventListener('click', onPaste);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+      closeModal('importSourceModal');
+      resolve(result);
+    };
+    const onFile = () => settle('file');
+    const onPaste = () => settle('paste');
+    const onCancel = () => settle(null);
+    fileBtn.addEventListener('click', onFile);
+    pasteBtn.addEventListener('click', onPaste);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn.addEventListener('click', onCancel);
+    openModal('importSourceModal', { initialFocusId: 'importSourceFileBtn', onDismiss: onCancel });
+  });
+}
+function showImportPasteDialog() {
+  return new Promise(resolve => {
+    const textarea = document.getElementById('importPasteTextarea');
+    const errorEl = document.getElementById('importPasteError');
+    const nextBtn = document.getElementById('importPasteNextBtn');
+    const cancelBtn = document.getElementById('importPasteCancelBtn');
+    const closeBtn = document.getElementById('importPasteCloseBtn');
+    textarea.value = '';
+    errorEl.textContent = '';
+    errorEl.classList.add('is-hidden');
+    const settle = (result) => {
+      nextBtn.removeEventListener('click', onNext);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+      closeModal('importPasteModal');
+      resolve(result);
+    };
+    const onNext = () => {
+      const text = textarea.value.trim();
+      if (!text) {
+        errorEl.textContent = '請先貼上匯出檔的內容。';
+        errorEl.classList.remove('is-hidden');
+        textarea.focus();
+        return;
+      }
+      settle(text);
+    };
+    const onCancel = () => settle(null);
+    nextBtn.addEventListener('click', onNext);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn.addEventListener('click', onCancel);
+    openModal('importPasteModal', { initialFocusId: 'importPasteTextarea', onDismiss: onCancel });
+  });
+}
+function showImportModeChoice(count) {
+  return new Promise(resolve => {
+    const messageEl = document.getElementById('importModeModalMessage');
+    const mergeBtn = document.getElementById('importModeMergeBtn');
+    const overwriteBtn = document.getElementById('importModeOverwriteBtn');
+    const cancelBtn = document.getElementById('importModeCancelBtn');
+    const closeBtn = document.getElementById('importModeCloseBtn');
+    messageEl.textContent = `檔案中找到 ${count} 筆貼文資料。請選擇匯入方式：`;
+    const teardown = () => {
+      mergeBtn.removeEventListener('click', onMerge);
+      overwriteBtn.removeEventListener('click', onOverwrite);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+      closeModal('importModeModal');
+    };
+    const settle = (result) => {
+      teardown();
+      resolve(result);
+    };
+    const onMerge = () => settle('merge');
+    const onOverwrite = async () => {
+      teardown();
+      const confirmed = await showConfirm(
+        '確認完全覆寫',
+        `這會刪除目前已儲存的 ${allArticles.length} 篇貼文，改以匯入的 ${count} 筆資料取代。此動作無法復原。`,
+        { confirmText: '覆寫全部資料' }
+      );
+      resolve(confirmed ? 'overwrite' : null);
+    };
+    const onCancel = () => settle(null);
+    mergeBtn.addEventListener('click', onMerge);
+    overwriteBtn.addEventListener('click', onOverwrite);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn.addEventListener('click', onCancel);
+    openModal('importModeModal', { initialFocusId: 'importModeMergeBtn', onDismiss: onCancel });
+  });
 }

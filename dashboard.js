@@ -8,6 +8,9 @@ let isUpdatingTimestamps = false;
 let isUpdatePaused = false;
 let cancelUpdateRequested = false;
 let activeProgressToast = null;
+const CLOUD_VISIBLE_LIMIT = 15;
+const SEARCH_DEBOUNCE_MS = 180;
+let searchDebounceTimer = null;
 let confirmModalResolve = null;
 let importModalResolve = null;
 let currentPreviewIndex = -1;
@@ -54,17 +57,22 @@ function renderTagsCloud() {
   allArticles.flatMap(a => a.tags || []).filter(Boolean).forEach(tag => {
     tagCounts[tag] = (tagCounts[tag] || 0) + 1;
   });
-  const sortedTags = Object.entries(tagCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 15);
+  const allSortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+  const sortedTags = allSortedTags.slice(0, CLOUD_VISIBLE_LIMIT);
   if (sortedTags.length === 0) {
-    cloudContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-secondary);">暫無標籤</span>';
+    const emptyEl = document.createElement('span');
+    emptyEl.className = 'cloud-empty';
+    emptyEl.textContent = '暫無標籤';
+    cloudContainer.appendChild(emptyEl);
     return;
   }
   sortedTags.forEach(([tag, count]) => {
-    const badge = document.createElement('span');
+    const isActive = currentFilter === 'tag' && currentFilterValue === tag;
+    const badge = document.createElement('button');
+    badge.type = 'button';
     badge.className = 'tag-badge';
-    if (currentFilter === 'tag' && currentFilterValue === tag) {
+    badge.setAttribute('aria-pressed', String(isActive));
+    if (isActive) {
       badge.classList.add('active');
     }
     badge.textContent = `#${tag} (${count})`;
@@ -85,6 +93,7 @@ function renderTagsCloud() {
     });
     cloudContainer.appendChild(badge);
   });
+  appendCloudOverflowNote(cloudContainer, allSortedTags.length, sortedTags.length, '個標籤');
 }
 function renderAuthorsCloud() {
   const cloudContainer = document.getElementById('authorsCloud');
@@ -94,17 +103,22 @@ function renderAuthorsCloud() {
   allArticles.map(a => a.author).filter(Boolean).forEach(author => {
     authorCounts[author] = (authorCounts[author] || 0) + 1;
   });
-  const sortedAuthors = Object.entries(authorCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 15);
+  const allSortedAuthors = Object.entries(authorCounts).sort((a, b) => b[1] - a[1]);
+  const sortedAuthors = allSortedAuthors.slice(0, CLOUD_VISIBLE_LIMIT);
   if (sortedAuthors.length === 0) {
-    cloudContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-secondary);">暫無作者</span>';
+    const emptyEl = document.createElement('span');
+    emptyEl.className = 'cloud-empty';
+    emptyEl.textContent = '暫無作者';
+    cloudContainer.appendChild(emptyEl);
     return;
   }
   sortedAuthors.forEach(([author, count]) => {
-    const badge = document.createElement('span');
+    const isActive = currentFilter === 'author' && currentFilterValue === author;
+    const badge = document.createElement('button');
+    badge.type = 'button';
     badge.className = 'tag-badge';
-    if (currentFilter === 'author' && currentFilterValue === author) {
+    badge.setAttribute('aria-pressed', String(isActive));
+    if (isActive) {
       badge.classList.add('active');
     }
     badge.textContent = `${author} (${count})`;
@@ -125,10 +139,21 @@ function renderAuthorsCloud() {
     });
     cloudContainer.appendChild(badge);
   });
+  appendCloudOverflowNote(cloudContainer, allSortedAuthors.length, sortedAuthors.length, '位作者');
+}
+function appendCloudOverflowNote(container, total, shown, unit) {
+  if (total <= shown) return;
+  const note = document.createElement('span');
+  note.className = 'cloud-overflow-note';
+  note.textContent = `顯示前 ${shown} ${unit}，共 ${total} ${unit}`;
+  container.appendChild(note);
 }
 function setupEventListeners() {
   document.getElementById('searchInput').addEventListener('input', () => {
-    applyFilters();
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      applyFilters();
+    }, SEARCH_DEBOUNCE_MS);
   });
   document.getElementById('sortSelect').addEventListener('change', (e) => {
     currentSort = e.target.value;
@@ -229,20 +254,101 @@ function setupModalListeners() {
   document.getElementById('importModeMerge').addEventListener('click', () => {
     closeImportModal('merge');
   });
-  document.getElementById('importModeOverwrite').addEventListener('click', () => {
-    closeImportModal('overwrite');
+  document.getElementById('importModeOverwrite').addEventListener('click', async () => {
+    const pendingResolve = importModalResolve;
+    importModalResolve = null;
+    deactivateModal('importModal');
+    const confirmed = await showConfirm(
+      '確認完全覆寫',
+      `這會刪除目前已儲存的 ${allArticles.length} 篇貼文，改以匯入的檔案內容取代。此動作無法復原。`,
+      { confirmText: '覆寫全部資料' }
+    );
+    if (pendingResolve) pendingResolve(confirmed ? 'overwrite' : null);
   });
 }
-function showConfirm(title, message) {
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+let activeModal = null;
+let modalReturnFocus = null;
+let modalDismissHandler = null;
+function getFocusableElements(modal) {
+  return Array.from(modal.querySelectorAll(FOCUSABLE_SELECTOR))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+}
+function handleModalKeydown(e) {
+  if (!activeModal) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (modalDismissHandler) modalDismissHandler();
+    return;
+  }
+  if (e.key !== 'Tab') return;
+  const focusable = getFocusableElements(activeModal);
+  if (focusable.length === 0) {
+    e.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+function activateModal(modalId, { initialFocusId, onDismiss } = {}) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modalReturnFocus = document.activeElement;
+  activeModal = modal;
+  modalDismissHandler = onDismiss || null;
+  modal.classList.add('active');
+  document.addEventListener('keydown', handleModalKeydown, true);
+  requestAnimationFrame(() => {
+    if (activeModal !== modal) return;
+    const initial = initialFocusId ? document.getElementById(initialFocusId) : null;
+    const target = initial || getFocusableElements(modal)[0];
+    if (target) target.focus();
+  });
+}
+function deactivateModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('active');
+  if (activeModal === modal) {
+    document.removeEventListener('keydown', handleModalKeydown, true);
+    activeModal = null;
+    modalDismissHandler = null;
+    if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') {
+      modalReturnFocus.focus();
+    }
+    modalReturnFocus = null;
+  }
+}
+function showConfirm(title, message, { confirmText = '確定', danger = true } = {}) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalMessage').textContent = message;
-  document.getElementById('confirmModal').classList.add('active');
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = confirmText;
+  confirmBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+  activateModal('confirmModal', {
+    initialFocusId: 'modalCancelBtn',
+    onDismiss: () => closeConfirmModal(false)
+  });
   return new Promise((resolve) => {
     confirmModalResolve = resolve;
   });
 }
 function closeConfirmModal(result) {
-  document.getElementById('confirmModal').classList.remove('active');
+  deactivateModal('confirmModal');
   if (confirmModalResolve) {
     confirmModalResolve(result);
     confirmModalResolve = null;
@@ -250,13 +356,16 @@ function closeConfirmModal(result) {
 }
 function showImportModal(count) {
   document.getElementById('importModalMessage').textContent = `偵測到檔案中含有 ${count} 筆文章資料。請選擇匯入模式：`;
-  document.getElementById('importModal').classList.add('active');
+  activateModal('importModal', {
+    initialFocusId: 'importModeMerge',
+    onDismiss: () => closeImportModal(null)
+  });
   return new Promise((resolve) => {
     importModalResolve = resolve;
   });
 }
 function closeImportModal(mode) {
-  document.getElementById('importModal').classList.remove('active');
+  deactivateModal('importModal');
   if (importModalResolve) {
     importModalResolve(mode);
     importModalResolve = null;
@@ -304,12 +413,8 @@ function applyFilters() {
       const contentMatch = (article.content || '').toLowerCase().includes(searchTerm);
       const authorMatch = (article.author || '').toLowerCase().includes(searchTerm);
       const tagsMatch = (article.tags || []).some(tag => (tag || '').toLowerCase().includes(searchTerm));
-      const codeMatch = (article.codeBlocks || []).some(block =>
-        (block.code || '').toLowerCase().includes(searchTerm) ||
-        (block.language || '').toLowerCase().includes(searchTerm)
-      );
       const embedMatch = (article.embedCode || '').toLowerCase().includes(searchTerm);
-      return contentMatch || authorMatch || tagsMatch || codeMatch || embedMatch;
+      return contentMatch || authorMatch || tagsMatch || embedMatch;
     }
     return true;
   });
@@ -444,16 +549,16 @@ function renderArticles() {
       spanText.textContent = shortText + '...';
       bodyEl.appendChild(spanText);
       const expandBtn = document.createElement('button');
+      expandBtn.type = 'button';
       expandBtn.className = 'expand-text-btn';
       expandBtn.textContent = '展開';
+      expandBtn.setAttribute('aria-expanded', 'false');
+      let isExpanded = false;
       expandBtn.addEventListener('click', () => {
-        if (expandBtn.textContent === '展開') {
-          spanText.textContent = rawContent;
-          expandBtn.textContent = '收起';
-        } else {
-          spanText.textContent = shortText + '...';
-          expandBtn.textContent = '展開';
-        }
+        isExpanded = !isExpanded;
+        spanText.textContent = isExpanded ? rawContent : shortText + '...';
+        expandBtn.textContent = isExpanded ? '收起' : '展開';
+        expandBtn.setAttribute('aria-expanded', String(isExpanded));
       });
       bodyEl.appendChild(expandBtn);
     } else {
@@ -470,9 +575,11 @@ function renderArticles() {
       const tagsContainer = document.createElement('div');
       tagsContainer.className = 'card-tags';
       article.tags.forEach(tag => {
-        const tagEl = document.createElement('span');
+        const tagEl = document.createElement('button');
+        tagEl.type = 'button';
         tagEl.className = 'card-tag';
         tagEl.textContent = '#' + tag;
+        tagEl.setAttribute('aria-label', `依標籤「${tag}」篩選`);
         tagEl.addEventListener('click', (e) => {
           e.stopPropagation();
           currentFilter = 'tag';
@@ -486,38 +593,6 @@ function renderArticles() {
         tagsContainer.appendChild(tagEl);
       });
       wrapper.appendChild(tagsContainer);
-    }
-    if (article.codeBlocks && article.codeBlocks.length > 0) {
-      const blocksContainer = document.createElement('div');
-      blocksContainer.className = 'code-blocks';
-      article.codeBlocks.forEach((block, index) => {
-        const blockEl = document.createElement('div');
-        blockEl.className = 'code-block';
-        const blockHeader = document.createElement('div');
-        blockHeader.className = 'code-header';
-        const langLabel = document.createElement('span');
-        langLabel.className = 'code-lang';
-        langLabel.textContent = block.language || 'code';
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'code-copy-btn';
-        copyBtn.textContent = '複製程式碼';
-        copyBtn.addEventListener('click', () => {
-          copyTextToClipboard(block.code, '程式碼已複製');
-        });
-        blockHeader.appendChild(langLabel);
-        blockHeader.appendChild(copyBtn);
-        const blockContent = document.createElement('div');
-        blockContent.className = 'code-content';
-        const blockPre = document.createElement('pre');
-        const blockCode = document.createElement('code');
-        blockCode.textContent = block.code || '';
-        blockPre.appendChild(blockCode);
-        blockContent.appendChild(blockPre);
-        blockEl.appendChild(blockHeader);
-        blockEl.appendChild(blockContent);
-        blocksContainer.appendChild(blockEl);
-      });
-      wrapper.appendChild(blocksContainer);
     }
     const actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -587,16 +662,14 @@ function updateSelectionUI() {
   const selectAll = document.getElementById('selectAllCheckbox');
   const batchActions = document.getElementById('batchActionsContainer');
   const selInfo = document.getElementById('selectionInfo');
-  if (selectedArticleIds.size > 0) {
+  const hasSelection = selectedArticleIds.size > 0;
+  if (hasSelection) {
     selInfo.textContent = `已選取 ${selectedArticleIds.size} 篇`;
-    selInfo.style.display = 'inline';
-    batchActions.style.opacity = '1';
-    batchActions.style.pointerEvents = 'auto';
-  } else {
-    selInfo.style.display = 'none';
-    batchActions.style.opacity = '0.5';
-    batchActions.style.pointerEvents = 'none';
   }
+  selInfo.classList.toggle('is-hidden', !hasSelection);
+  batchActions.querySelectorAll('button').forEach(btn => {
+    btn.disabled = !hasSelection;
+  });
   if (selectAll && filteredArticles.length > 0) {
     const allChecked = filteredArticles.every(a => selectedArticleIds.has(a.id));
     const someChecked = filteredArticles.some(a => selectedArticleIds.has(a.id));
@@ -618,22 +691,61 @@ async function copyTextToClipboard(text, successMessage) {
     showToast(successMessage);
   } catch (err) {
     console.error('複製失敗:', err);
-    showToast('複製失敗，瀏覽器權限受限');
+    showToast('複製失敗，瀏覽器權限受限', { type: 'error' });
   }
 }
-function showToast(message) {
+function showToast(message, options = {}) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
+  const isError = options.type === 'error';
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = isError ? 'toast toast-error' : 'toast';
   toast.textContent = message;
   container.appendChild(toast);
+  const duration = options.duration || (isError ? 5000 : 2500);
   setTimeout(() => {
     toast.classList.add('fade-out');
     toast.addEventListener('animationend', () => {
       toast.remove();
     });
-  }, 2500);
+  }, duration);
+}
+function showUndoToast(message, onUndo, duration = 8000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  container.querySelectorAll('.toast-undo').forEach(el => el.remove());
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-undo';
+  const text = document.createElement('span');
+  text.textContent = message;
+  const undoBtn = document.createElement('button');
+  undoBtn.type = 'button';
+  undoBtn.className = 'toast-undo-btn';
+  undoBtn.textContent = '復原';
+  let settled = false;
+  const dismiss = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  };
+  undoBtn.addEventListener('click', async () => {
+    if (settled) return;
+    dismiss();
+    await onUndo();
+  });
+  toast.appendChild(text);
+  toast.appendChild(undoBtn);
+  container.appendChild(toast);
+  const timer = setTimeout(dismiss, duration);
+}
+async function restoreArticles(snapshot, message) {
+  allArticles = snapshot;
+  await chrome.storage.local.set({ savedArticles: allArticles });
+  applyFilters();
+  calculateStatistics();
+  showToast(message);
 }
 function createProgressToast(initialMessage) {
   const container = document.getElementById('toastContainer');
@@ -677,49 +789,6 @@ function createProgressToast(initialMessage) {
     }
   };
 }
-async function refreshEmbedCode(articleId) {
-  const article = allArticles.find(a => a.id === articleId);
-  if (!article || !article.postLink) {
-    showToast('找不到文章連結');
-    return;
-  }
-  showToast('正在重新生成嵌入代碼...');
-  const newEmbed = buildThreadsEmbedCode(article.postLink);
-  if (!newEmbed) {
-    showToast('生成失敗');
-    return;
-  }
-  article.embedCode = newEmbed;
-  article.lastUpdated = new Date().toISOString();
-  await chrome.storage.local.set({ savedArticles: allArticles });
-  showToast('嵌入代碼已重新生成');
-  calculateStatistics();
-  renderArticles();
-}
-async function batchRegenEmbedCodes() {
-  const targets = allArticles.filter(a => selectedArticleIds.has(a.id) && a.postLink);
-  if (targets.length === 0) return;
-  const confirmed = await showConfirm(
-    '批次重新生成確認',
-    `您確定要為已選取的 ${targets.length} 篇文章重新生成內嵌程式碼嗎？`
-  );
-  if (!confirmed) return;
-  showToast(`正在重新生成 ${targets.length} 篇文章的嵌入代碼...`);
-  let successCount = 0;
-  targets.forEach(article => {
-    const newEmbed = buildThreadsEmbedCode(article.postLink);
-    if (newEmbed) {
-      article.embedCode = newEmbed;
-      article.lastUpdated = new Date().toISOString();
-      successCount++;
-    }
-  });
-  await chrome.storage.local.set({ savedArticles: allArticles });
-  selectedArticleIds.clear();
-  calculateStatistics();
-  renderArticles();
-  showToast(`完成！成功重新生成 ${successCount} 篇`);
-}
 async function batchCopyEmbedCodes() {
   const targets = allArticles.filter(a => selectedArticleIds.has(a.id) && a.embedCode);
   if (targets.length === 0) {
@@ -743,30 +812,34 @@ async function deleteArticle(articleId) {
   const authorName = article ? article.author : '此貼文';
   const confirmed = await showConfirm(
     '刪除貼文確認',
-    `您確定要刪除由 ${authorName} 發布的儲存程式碼嗎？此動作將無法還原。`
+    `您確定要刪除由 ${authorName} 發布的儲存程式碼嗎？刪除後可在短時間內使用「復原」還原。`,
+    { confirmText: '刪除' }
   );
   if (!confirmed) return;
+  const snapshot = [...allArticles];
   allArticles = allArticles.filter(a => a.id !== articleId);
   await chrome.storage.local.set({ savedArticles: allArticles });
   selectedArticleIds.delete(articleId);
   applyFilters();
   calculateStatistics();
-  showToast('已刪除貼文');
+  showUndoToast('已刪除 1 篇貼文', () => restoreArticles(snapshot, '已復原貼文'));
 }
 async function batchDeleteArticles() {
   if (selectedArticleIds.size === 0) return;
   const count = selectedArticleIds.size;
   const confirmed = await showConfirm(
     '批次刪除確認',
-    `您確定要完全刪除已選取的 ${count} 篇文章嗎？此動作將無法還原！`
+    `您確定要刪除已選取的 ${count} 篇文章嗎？刪除後可在短時間內使用「復原」還原。`,
+    { confirmText: `刪除 ${count} 篇` }
   );
   if (!confirmed) return;
+  const snapshot = [...allArticles];
   allArticles = allArticles.filter(a => !selectedArticleIds.has(a.id));
   await chrome.storage.local.set({ savedArticles: allArticles });
   selectedArticleIds.clear();
   applyFilters();
   calculateStatistics();
-  showToast(`已批次刪除 ${count} 篇文章`);
+  showUndoToast(`已批次刪除 ${count} 篇貼文`, () => restoreArticles(snapshot, `已復原 ${count} 篇貼文`));
 }
 async function clearAllArticles() {
   if (allArticles.length === 0) {
@@ -775,38 +848,18 @@ async function clearAllArticles() {
   }
   const confirmed = await showConfirm(
     '清除全部資料',
-    `【警告】您確定要清除目前儲存的所有 ${allArticles.length} 篇資料嗎？此操作將會完全清空擴充功能資料庫，且無法還原！`
+    `您確定要清除目前儲存的所有 ${allArticles.length} 篇資料嗎？清除後可在短時間內使用「復原」還原，但建議先匯出完整備份。`,
+    { confirmText: '清除全部' }
   );
   if (!confirmed) return;
+  const snapshot = [...allArticles];
   allArticles = [];
   filteredArticles = [];
   selectedArticleIds.clear();
   await chrome.storage.local.set({ savedArticles: [] });
   applyFilters();
   calculateStatistics();
-  showToast('資料庫已清空');
-}
-async function refreshAllEmbedCodes() {
-  const confirmed = await showConfirm(
-    '重新生成全部',
-    `您確定要為目前已儲存的 ${allArticles.length} 篇貼文重新生成嵌入程式碼嗎？`
-  );
-  if (!confirmed) return;
-  showToast('正在重新生成全部嵌入代碼...');
-  let successCount = 0;
-  allArticles.forEach(article => {
-    if (article.postLink) {
-      const newEmbed = buildThreadsEmbedCode(article.postLink);
-      if (newEmbed) {
-        article.embedCode = newEmbed;
-        article.lastUpdated = new Date().toISOString();
-        successCount++;
-      }
-    }
-  });
-  await chrome.storage.local.set({ savedArticles: allArticles });
-  renderArticles();
-  showToast(`完成！成功重新生成 ${successCount} 篇`);
+  showUndoToast(`已清除 ${snapshot.length} 篇貼文`, () => restoreArticles(snapshot, '已復原全部貼文'));
 }
 async function updateAllTimestamps() {
   const updateBtn = document.getElementById('updateTimestampsBtn');
@@ -837,7 +890,8 @@ async function updateAllTimestamps() {
   const isBatch = selectedArticleIds.size > 0;
   const confirmed = await showConfirm(
     '更新貼文資料',
-    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇文章的精確發文時間和內文嗎？\n\n系統將重用單一背景分頁依序快速抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`
+    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇文章的精確發文時間和內文嗎？\n\n系統將重用單一背景分頁依序快速抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`,
+    { confirmText: '開始更新', danger: false }
   );
   if (!confirmed) return;
   isUpdatingTimestamps = true;
@@ -1617,8 +1671,6 @@ function parseJsEmbedFile(content) {
             return {
               id: item.id || `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               content: item.content || '',
-              codeBlocks: item.codeBlocks || [],
-              codeCount: item.codeCount || 0,
               author: item.author || '',
               authorUrl: item.authorUrl || '',
               postLink: item.postLink || '',
@@ -1656,8 +1708,6 @@ function parseJsEmbedFile(content) {
         articles.push({
           id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           content: '',
-          codeBlocks: [],
-          codeCount: 0,
           author: username,
           authorUrl: usernameMatch ? `https://www.threads.com/@${usernameMatch[1]}` : '',
           postLink: postLink,
@@ -1683,11 +1733,11 @@ function isAllowedEmbedOrigin(origin) {
   }
 }
 function setupPreviewModalListeners() {
+  document.getElementById('previewRetryBtn')?.addEventListener('click', retryPreviewEmbed);
   const previewModal = document.getElementById('previewModal');
   const previewCloseBtn = document.getElementById('previewCloseBtn');
   const previewPrevBtn = document.getElementById('previewPrevBtn');
   const previewNextBtn = document.getElementById('previewNextBtn');
-  const previewCopyCodeBtn = document.getElementById('previewCopyCodeBtn');
   const previewCopyEmbedBtn = document.getElementById('previewCopyEmbedBtn');
   if (previewCloseBtn) {
     previewCloseBtn.addEventListener('click', closePreviewModal);
@@ -1697,17 +1747,6 @@ function setupPreviewModalListeners() {
   }
   if (previewNextBtn) {
     previewNextBtn.addEventListener('click', () => navigatePreview(1));
-  }
-  if (previewCopyCodeBtn) {
-    previewCopyCodeBtn.addEventListener('click', () => {
-      if (!currentPreviewArticle) return;
-      const codes = (currentPreviewArticle.codeBlocks || []).map(b => b.code).filter(Boolean).join('\n\n');
-      if (codes) {
-        copyTextToClipboard(codes, '已複製貼文內所有程式碼');
-      } else {
-        showToast('此貼文無程式碼區塊');
-      }
-    });
   }
   if (previewCopyEmbedBtn) {
     previewCopyEmbedBtn.addEventListener('click', () => {
@@ -1778,9 +1817,9 @@ function setupPreviewModalListeners() {
   });
   document.addEventListener('keydown', (e) => {
     if (!previewModal || !previewModal.classList.contains('active')) return;
-    if (e.key === 'Escape') {
-      closePreviewModal();
-    } else if (e.key === 'ArrowLeft') {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') {
       navigatePreview(-1);
     } else if (e.key === 'ArrowRight') {
       navigatePreview(1);
@@ -1800,12 +1839,14 @@ function openPreviewModal(articleId) {
   }
   const modal = document.getElementById('previewModal');
   if (!modal) return;
-  modal.classList.add('active');
+  activateModal('previewModal', {
+    initialFocusId: 'previewCloseBtn',
+    onDismiss: closePreviewModal
+  });
   renderPreviewModalContent();
 }
 function closePreviewModal() {
-  const modal = document.getElementById('previewModal');
-  if (modal) modal.classList.remove('active');
+  deactivateModal('previewModal');
   const iframe = document.getElementById('previewIframe');
   if (iframe) {
     iframe.src = 'about:blank';
@@ -1826,13 +1867,20 @@ function navigatePreview(direction) {
 function switchPreviewTab(tabName) {
   currentPreviewTab = tabName;
   document.querySelectorAll('.preview-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tabName);
+    const isActive = t.dataset.tab === tabName;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', String(isActive));
   });
-  document.querySelectorAll('.preview-pane').forEach(p => p.classList.remove('active'));
-  if (tabName === 'embed') {
-    document.getElementById('paneEmbed')?.classList.add('active');
-  } else if (tabName === 'raw') {
-    document.getElementById('paneRaw')?.classList.add('active');
+  document.querySelectorAll('.preview-pane').forEach(p => {
+    p.classList.remove('active');
+    p.hidden = true;
+  });
+  const activePane = tabName === 'embed'
+    ? document.getElementById('paneEmbed')
+    : document.getElementById('paneRaw');
+  if (activePane) {
+    activePane.classList.add('active');
+    activePane.hidden = false;
   }
   renderPreviewModalContent();
 }
@@ -1876,28 +1924,52 @@ function getThreadsEmbedUrl(postLink) {
   }
   return '';
 }
+let previewLoadTimer = null;
+function setPreviewState(state, message, { retryable = true } = {}) {
+  const wrapper = document.getElementById('previewIframeWrapper');
+  const spinner = document.getElementById('previewLoadingSpinner');
+  const errorEl = document.getElementById('previewErrorState');
+  const errorMsg = document.getElementById('previewErrorMessage');
+  const retryBtn = document.getElementById('previewRetryBtn');
+  if (wrapper) wrapper.dataset.state = state;
+  if (spinner) spinner.classList.toggle('is-hidden', state !== 'loading');
+  if (errorEl) errorEl.classList.toggle('is-hidden', state !== 'error');
+  if (errorMsg && message) errorMsg.textContent = message;
+  if (retryBtn) retryBtn.classList.toggle('is-hidden', !retryable);
+}
 function renderEmbedPane(article) {
   const iframe = document.getElementById('previewIframe');
-  const spinner = document.getElementById('previewLoadingSpinner');
   if (!iframe) return;
-  if (spinner) spinner.style.opacity = '1';
+  clearTimeout(previewLoadTimer);
+  iframe.onload = null;
+  iframe.onerror = null;
   iframe.style.height = '360px';
   const embedUrl = getThreadsEmbedUrl(article.postLink);
-  if (embedUrl) {
-    iframe.src = sanitizeUrl(embedUrl);
-    iframe.onload = () => {
-      if (spinner) spinner.style.opacity = '0';
-    };
-    iframe.onerror = () => {
-      if (spinner) spinner.style.opacity = '0';
-    };
-  } else {
+  if (!embedUrl) {
     iframe.src = 'about:blank';
-    if (spinner) spinner.style.opacity = '0';
+    setPreviewState(
+      'error',
+      '這篇貼文沒有可用的連結，無法載入 Threads 原生內嵌預覽。請切換到上方「原始碼與中繼資料」分頁，查看已儲存的內容。',
+      { retryable: false }
+    );
+    return;
   }
-  setTimeout(() => {
-    if (spinner) spinner.style.opacity = '0';
-  }, 1500);
+  setPreviewState('loading');
+  iframe.src = sanitizeUrl(embedUrl);
+  iframe.onload = () => {
+    clearTimeout(previewLoadTimer);
+    setPreviewState('ready');
+  };
+  iframe.onerror = () => {
+    clearTimeout(previewLoadTimer);
+    setPreviewState('error', '無法載入 Threads 原生內嵌預覽。可能是網路連線問題，或這篇貼文已被刪除。');
+  };
+  previewLoadTimer = setTimeout(() => {
+    setPreviewState('error', '載入 Threads 原生內嵌預覽逾時。請確認網路連線後重試，或切換到「原始碼與中繼資料」分頁。');
+  }, 10000);
+}
+function retryPreviewEmbed() {
+  if (currentPreviewArticle) renderEmbedPane(currentPreviewArticle);
 }
 function renderRawPane(article) {
   const container = document.getElementById('previewRawView');
@@ -1913,7 +1985,6 @@ function renderRawPane(article) {
   const metaCard = document.createElement('div');
   metaCard.className = 'preview-raw-card';
   const tagsStr = (article.tags || []).map(t => escapeHtml(t)).join(', ') || '無';
-  const codeBlocksCount = (article.codeBlocks || []).length;
   const safePostLink = sanitizeUrl(article.postLink || '#');
   const postTimeStr = article.timestampTitle || article.timestamp || 'N/A';
   metaCard.innerHTML = `
@@ -1926,7 +1997,6 @@ function renderRawPane(article) {
         <tr><td>發文時間</td><td>${escapeHtml(postTimeStr)}</td></tr>
         <tr><td>儲存時間</td><td>${escapeHtml(article.savedAt || 'N/A')}</td></tr>
         <tr><td>標籤清單</td><td>${tagsStr}</td></tr>
-        <tr><td>程式碼區塊數</td><td>${codeBlocksCount} 個</td></tr>
         <tr><td>貼文狀態</td><td>${escapeHtml(article.status || 'active')}${article.expiredReason ? ` (${escapeHtml(article.expiredReason)})` : ''}</td></tr>
       </tbody>
     </table>

@@ -41,18 +41,19 @@
   <div class="dashboard-container">
     <aside class="sidebar">
       <div class="sidebar-section">
-        <h3>全文搜尋</h3>
+        <h2 class="sidebar-title">全文搜尋</h2>
         <div class="search-wrapper">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
+          <label class="sr-only" for="searchInput">搜尋內文、程式碼、作者或標籤</label>
           <input type="text" id="searchInput" placeholder="搜尋內文、程式碼、作者或標籤...">
         </div>
       </div>
       <div class="sidebar-section">
-        <h3>整理與篩選</h3>
+        <h2 class="sidebar-title">整理與篩選</h2>
         <div class="control-group">
           <label for="sortSelect">排序依據</label>
           <select id="sortSelect" class="form-select">
@@ -83,7 +84,7 @@
         </div>
       </div>
       <div class="sidebar-section">
-        <h3>快速統計</h3>
+        <h2 class="sidebar-title">快速統計</h2>
         <div class="stats-panel">
           <div class="mini-stat-card">
             <span class="label">作者總數</span>
@@ -106,11 +107,17 @@
         </div>
       </div>
       <div class="sidebar-section">
-        <h3>備份與維護</h3>
+        <h2 class="sidebar-title">備份與維護</h2>
         <div class="actions-grid">
-          <button class="btn btn-primary" id="exportBtn" title="匯出簡易嵌入代碼 (.js)">匯出 JS 嵌入代碼</button>
-          <button class="btn btn-primary" id="exportFeaturedBtn" title="匯出精選貼文格式 (config.js)">匯出精選資料</button>
-          <button class="btn btn-primary" id="exportFullBtn" title="匯出包含貼文詳細資料的備份檔案 (.js)">匯出完整資料</button>
+          <button class="btn btn-primary" id="exportBtn">
+            匯出 JS 嵌入代碼<span class="btn-hint">僅嵌入碼，適合直接貼進網頁</span>
+          </button>
+          <button class="btn btn-primary" id="exportFeaturedBtn">
+            匯出精選資料<span class="btn-hint">config.js 精選貼文格式</span>
+          </button>
+          <button class="btn btn-primary" id="exportFullBtn">
+            匯出完整資料<span class="btn-hint">含時間、作者、內文的完整備份</span>
+          </button>
           <button class="btn id-btn" id="importBtn">匯入資料檔案</button>
         </div>
         <div class="maintenance-actions">
@@ -128,7 +135,10 @@
               <button class="btn btn-small btn-danger" id="cancelUpdateBtn" title="停止更新">取消</button>
             </div>
           </div>
-          <button class="btn btn-danger" id="clearBtn">清除全部資料</button>
+          <div class="danger-zone">
+            <span class="danger-zone-label">危險操作</span>
+            <button class="btn btn-danger" id="clearBtn">清除全部資料</button>
+          </div>
         </div>
       </div>
     </aside>
@@ -142,10 +152,10 @@
           </label>
           <span id="selectionInfo" class="selection-info-text is-hidden">已選取 0 篇</span>
         </div>
-        <div class="batch-right batch-actions-disabled" id="batchActionsContainer">
-          <button class="btn btn-small btn-warning" id="batchUpdateBtn">更新貼文資料</button>
-          <button class="btn btn-small" id="batchCopyEmbedBtn">批次複製 Embed</button>
-          <button class="btn btn-small btn-danger" id="batchDeleteBtn">批次刪除</button>
+        <div class="batch-right" id="batchActionsContainer">
+          <button class="btn btn-small btn-warning" id="batchUpdateBtn" disabled>更新貼文資料</button>
+          <button class="btn btn-small" id="batchCopyEmbedBtn" disabled>批次複製 Embed</button>
+          <button class="btn btn-small btn-danger" id="batchDeleteBtn" disabled>批次刪除</button>
         </div>
       </div>
       <div class="grid-container" id="articlesContainer">
@@ -162,11 +172,12 @@
       </div>
     </main>
   </div>
-  <div class="modal-overlay" id="confirmModal">
+  <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+    aria-describedby="modalMessage">
     <div class="modal-container">
       <div class="modal-header">
-        <h4 id="modalTitle">確認操作</h4>
-        <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+        <h2 id="modalTitle">確認操作</h2>
+        <button class="modal-close-btn" id="modalCloseBtn" aria-label="關閉對話框">&times;</button>
       </div>
       <div class="modal-body">
         <p id="modalMessage">您確定要執行此操作嗎？此動作將無法還原。</p>
@@ -177,23 +188,24 @@
       </div>
     </div>
   </div>
-  <div class="modal-overlay" id="importModal">
+  <div class="modal-overlay" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle"
+    aria-describedby="importModalMessage">
     <div class="modal-container">
       <div class="modal-header">
-        <h4>匯入資料選項</h4>
-        <button class="modal-close-btn" id="importModalCloseBtn">&times;</button>
+        <h2 id="importModalTitle">匯入資料選項</h2>
+        <button class="modal-close-btn" id="importModalCloseBtn" aria-label="關閉對話框">&times;</button>
       </div>
       <div class="modal-body">
         <p id="importModalMessage">偵測到已準備匯入的文章資料。請選擇匯入模式：</p>
         <div class="import-mode-options">
-          <div class="import-option" id="importModeMerge">
-            <h5>合併資料 (推薦)</h5>
-            <p>與現有資料進行比對，僅加入不存在的貼文，不會覆蓋現有內容。</p>
-          </div>
-          <div class="import-option" id="importModeOverwrite">
-            <h5>完全覆寫</h5>
-            <p>清除所有現有儲存的貼文，以匯入的檔案內容完全取代。</p>
-          </div>
+          <button type="button" class="import-option" id="importModeMerge">
+            <span class="import-option-title">合併資料<span class="import-option-tag">推薦</span></span>
+            <span class="import-option-desc">與現有資料進行比對，僅加入不存在的貼文，不會覆蓋現有內容。</span>
+          </button>
+          <button type="button" class="import-option import-option-danger" id="importModeOverwrite">
+            <span class="import-option-title">完全覆寫</span>
+            <span class="import-option-desc">清除所有現有儲存的貼文，以匯入的檔案內容完全取代。此動作無法復原。</span>
+          </button>
         </div>
       </div>
       <div class="modal-footer">
@@ -201,47 +213,63 @@
       </div>
     </div>
   </div>
-  <div class="modal-overlay preview-modal-overlay" id="previewModal">
+  <div class="modal-overlay preview-modal-overlay" id="previewModal" role="dialog" aria-modal="true"
+    aria-labelledby="previewAuthorTitle">
     <div class="modal-container preview-modal-container">
       <div class="preview-modal-header">
         <div class="preview-header-left">
           <div class="preview-badge">即時預覽</div>
-          <h4 id="previewAuthorTitle">@author</h4>
+          <h2 id="previewAuthorTitle">@author</h2>
           <span class="preview-counter" id="previewIndexCounter">第 1 / 1 篇</span>
         </div>
         <div class="preview-header-nav">
-          <button class="preview-nav-btn" id="previewPrevBtn" title="上一篇 (鍵盤 ←)">
+          <button class="preview-nav-btn" id="previewPrevBtn" title="上一篇 (鍵盤 ←)" aria-label="上一篇貼文">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-          <button class="preview-nav-btn" id="previewNextBtn" title="下一篇 (鍵盤 →)">
+          <button class="preview-nav-btn" id="previewNextBtn" title="下一篇 (鍵盤 →)" aria-label="下一篇貼文">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
-          <button class="modal-close-btn preview-close-btn" id="previewCloseBtn" title="關閉 (ESC)">&times;</button>
+          <button class="modal-close-btn preview-close-btn" id="previewCloseBtn" title="關閉 (ESC)"
+            aria-label="關閉預覽">&times;</button>
         </div>
       </div>
       <div class="preview-toolbar">
-        <div class="preview-tabs">
-          <button class="preview-tab active" data-tab="embed">原生內嵌預覽</button>
-          <button class="preview-tab" data-tab="raw">原始碼與中繼資料</button>
+        <div class="preview-tabs" role="tablist" aria-label="預覽模式">
+          <button class="preview-tab active" data-tab="embed" role="tab" aria-selected="true" aria-controls="paneEmbed"
+            id="previewTabEmbed">原生內嵌預覽</button>
+          <button class="preview-tab" data-tab="raw" role="tab" aria-selected="false" aria-controls="paneRaw"
+            id="previewTabRaw">原始碼與中繼資料</button>
         </div>
       </div>
       <div class="preview-modal-body">
-        <div class="preview-pane active" id="paneEmbed">
+        <div class="preview-pane active" id="paneEmbed" role="tabpanel" aria-labelledby="previewTabEmbed">
           <div class="preview-iframe-wrapper" id="previewIframeWrapper">
             <div class="preview-loading-spinner" id="previewLoadingSpinner">
               <div class="spinner"></div>
               <span>正在載入 Threads 原生內嵌元件...</span>
             </div>
-            <iframe id="previewIframe" class="preview-iframe" src="about:blank" scrolling="no" title="Threads 貼文即時預覽框架"></iframe>
+            <div class="preview-error-state is-hidden" id="previewErrorState" role="alert">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p class="preview-error-message" id="previewErrorMessage"></p>
+              <button class="btn btn-small btn-primary" id="previewRetryBtn" type="button">重新載入</button>
+            </div>
+            <iframe id="previewIframe" class="preview-iframe" src="about:blank" scrolling="no"
+              title="Threads 貼文即時預覽框架"></iframe>
           </div>
         </div>
-        <div class="preview-pane" id="paneRaw">
+        <div class="preview-pane" id="paneRaw" role="tabpanel" aria-labelledby="previewTabRaw" hidden>
           <div class="preview-raw-view" id="previewRawView"></div>
         </div>
       </div>
@@ -250,14 +278,6 @@
           <span class="preview-post-time" id="previewPostTime"></span>
         </div>
         <div class="preview-footer-actions">
-          <button class="preview-action-btn secondary" id="previewCopyCodeBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-            複製程式碼
-          </button>
           <button class="preview-action-btn secondary" id="previewCopyEmbedBtn">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -279,7 +299,7 @@
       </div>
     </div>
   </div>
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="false"></div>
   <input type="file" id="importFileInput" accept=".js,.json" class="is-hidden" title="匯入資料檔案">
   <script src="dashboard.js"></script>
 </body>
