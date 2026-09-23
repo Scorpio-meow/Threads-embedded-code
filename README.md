@@ -4,6 +4,9 @@
 
 **自動擷取、清理、管理與匯出 Threads 貼文中的可嵌入程式碼與中繼資料**
 
+**[前往介紹頁](https://scorpio-meow.github.io/Threads-embedded-code/)**：功能導覽、互動清洗示範與安裝教學
+
+[![Website](https://img.shields.io/badge/Website-GitHub_Pages-D12F35?style=for-the-badge&logo=githubpages&logoColor=white)](https://scorpio-meow.github.io/Threads-embedded-code/)
 [![Version](https://img.shields.io/badge/version-2.1.0-blue?style=for-the-badge)](./manifest.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](./LICENSE)
@@ -90,7 +93,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 | **無感自動擷取** | 只要在貼文點擊「取得內嵌程式碼」，擴充功能即自動在背景完成中繼資料與程式碼提取。 |
 | **原始排版保真** | 採用頂層文字容器分析演算法，完整保留段落換行與程式碼縮排，徹底告別換行被壓平的困擾。 |
 | **多層雜訊過濾** | 內建 41 條過濾正規表達式，自動剝離作者簡介、相對發文時間、輪播計數及平台導覽文字。 |
-| **離線安全隱私** | 資料 100% 留存於瀏覽器本機儲存區，不建立任何外部通訊，無追蹤、無遙測、無隱私疑慮。 |
+| **本機隱私安全** | 資料 100% 留存於瀏覽器本機儲存區，不會上傳到任何伺服器；對外連線僅限 Threads 官方網域（即時預覽與背景更新）及介面字型所用的 Google Fonts，無追蹤、無遙測。 |
 | **靈活跨端複用** | 提供標準 HTML 內嵌碼、JSON 結構化資料、精選 JavaScript 配置檔等三種匯出格式，無縫串接個人網站或筆記庫。 |
 
 ---
@@ -259,7 +262,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 +-----------------------------------------------------------------------+
 |  規範標準    | Chrome Extensions Manifest V3                          |
 |  核心語言    | 原生 JavaScript (ES6+), HTML5, CSS3 Variables          |
-|  依賴套件    | 0 External Dependencies (無 npm 套件、無外部 CDN 依賴)   |
+|  依賴套件    | 無 npm 套件 (介面字型由 Google Fonts 載入)             |
 |  資料儲存    | 瀏覽器本機儲存 (chrome.storage.local, 配額上限 10MB)   |
 |  安全規範    | 符合嚴格 CSP (Content Security Policy)，無行內事件與樣式 |
 |  相容平台    | Google Chrome, Microsoft Edge, Brave, Opera, Arc 等    |
@@ -296,7 +299,7 @@ threads-embedded-code/
 | `manifest.json` | 設定層 | 聲明 Manifest V3 規格、儲存與分頁權限、主機比對規則與 CSP 配置。 |
 | `content.js` | 注入腳本層 | 負責監聽 Threads DOM 變化、攔截內嵌對話框、頂層排版提取與正規表達式文本清洗。 |
 | `styles.css` | 注入樣式層 | 定義顯示於 Threads 頁面之儲存成功/失敗浮動通知外觀、進場動畫與 `prefers-reduced-motion` 降級。 |
-| `popup.html` / `popup.js` | 快速檢視層 | 提供 400px 寬度的工具列快速面板，支援即時關鍵字查詢、6 種分類、6 種排序、單篇維護、頁內確認／匯入 Modal 與基本匯出。 |
+| `popup.html` / `popup.js` | 快速檢視層 | 提供 480px 寬度的工具列快速面板，支援即時關鍵字查詢、6 種分類、6 種排序、單篇維護、頁內確認／匯入 Modal 與基本匯出。 |
 | `dashboard.html` / `dashboard.js` | 完整管理層 | 全螢幕資料庫中心，提供 Live Preview 即時預覽、批次管理、標籤/作者統計雲、背景更新佇列與可復原的刪除操作。 |
 | `llms.txt` | 規範說明層 | 提供 AI 代理與 RAG 檢索系統快速索引之結構化摘要說明文件。 |
 | `README.md` | 完整文檔層 | 專案主要說明文件，包含完整系統架構、演算法剖析、資料 Schema 與常見問題。 |
@@ -322,7 +325,7 @@ flowchart TD
         G -->|"safeStorageSet (防例外寫入)"| H[("chrome.storage.local\n[savedArticles]")]
     end
 
-    subgraph PopupView["Popup 彈出面板 (400px)"]
+    subgraph PopupView["Popup 彈出面板 (480px)"]
         H -->|"safeStorageGet (讀取)"| I["popup.js 渲染引擎"]
         I --> J["全文搜尋 / 6種排序 / 6種篩選"]
         I --> K["單筆維護 / 快速匯出"]
@@ -676,7 +679,7 @@ interface SavedArticle {
   "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://www.threads.com https://www.threads.net https://*.threads.com https://*.threads.net;"
 }
 ```
-- **禁止外部腳本**：所有頁面僅載入本機自帶之腳本（`script-src 'self'`），不使用任何外部 CDN 或遠端代碼。
+- **禁止外部腳本**：所有頁面僅載入本機自帶之腳本（`script-src 'self'`），不載入任何外部 CDN 腳本或遠端代碼；唯一的外部資源是 `popup.css`、`dashboard.css` 以 `@import` 引入的 Google Fonts 字型樣式表。
 - **安全 Frame 來源**：僅限定允許嵌入來自 Threads 官方網域（`threads.com` 與 `threads.net`）之 iframe 預覽元件。
 
 ---
@@ -691,7 +694,7 @@ interface SavedArticle {
 | :--- | :--- | :--- | :--- |
 | **簡易版嵌入碼 (Embed Only)** | `threads-embed-codes-YYYY-MM-DD.js` | `const posts = ['<blockquote>...</blockquote>', ...];` | 專為靜態網頁快速引用設計，已自動移除重複的 script 標籤並轉義引號。 |
 | **精選貼文資料 (Featured Data)** | `threads-featured-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, tags }, ...];` | 專為關聯專案 [Threads-Featured-Posts](https://github.com/Scorpio-meow/Threads-Featured-Posts) 設計，author 欄位自動去除 `@` 前綴以利作為 Key 或展示標籤使用。 |
-| **完整版備份資料 (Full Data)** | `threads-full-data-YYYY-MM-DD.js` | `const posts = [{ id, postLink, embedCode, timestamp, savedAt, ... }, ...];` | 包含所有欄位與狀態標記，適用於跨裝置備份、資料遷移與災難還原。 |
+| **完整版備份資料 (Full Data)** | `threads-full-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status, ... }, ...];` | 包含內文、時間、標籤與失效狀態等欄位，適用於跨裝置備份、資料遷移與災難還原。不含 `id` 與 `authorUrl`：匯入時會重新產生 `id`，`authorUrl` 則為空值。 |
 
 ### 匯出檔案範例
 
@@ -791,7 +794,7 @@ const posts = [
 | **多維度分類與排序** | 透過頂部下拉選單切換 6 種分類篩選（如無內文、失效貼文）與 6 種排序規則。 |
 | **背景同步更新** | 點擊側邊欄「更新貼文資料」可更新目前篩選結果；若已勾選貼文則改用批次工具列的「更新貼文資料」，僅更新勾選項目。執行中可隨時「暫停/繼續」或「取消」。 |
 | **自選範圍匯出** | 先勾選欲匯出的貼文，再點擊任一匯出按鈕，即只匯出勾選項目；未勾選時匯出目前篩選結果。 |
-| **復原誤刪** | 單篇刪除、批次刪除與清除全部後，左下角提示會出現「復原」按鈕，預設 8 秒內點擊即可還原。 |
+| **復原誤刪** | 單篇刪除、批次刪除與清除全部後，畫面下方中央的提示會出現「復原」按鈕，預設 8 秒內點擊即可還原。 |
 | **匯入資料** | Popup 點「匯入」後可選擇讀取檔案或直接貼上內容；Dashboard 點「匯入資料檔案」選擇備份檔，接著選擇合併或覆寫。 |
 
 ---
@@ -822,7 +825,7 @@ const posts = [
 
 > [!TIP]
 > **問題：不小心刪錯貼文或按到「清除全部資料」怎麼辦？**
-> - 刪除、批次刪除與清除全部皆為可復原操作，畫面左下角的提示列會顯示「復原」按鈕，預設 8 秒內點擊即可完整還原。
+> - 刪除、批次刪除與清除全部皆為可復原操作，畫面下方中央的提示列會顯示「復原」按鈕，預設 8 秒內點擊即可完整還原。
 > - 提示消失後即無法復原，因此執行清除前仍建議先「匯出完整資料」備份。
 > - 匯入時若選擇「完全覆寫」，必須再通過一次確認對話框；關閉視窗或按 `ESC` 一律視為取消。
 

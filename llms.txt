@@ -6,7 +6,7 @@
 - Current Version: 2.1.0
 - Specification: Google Chrome Extensions Manifest V3
 - Tech Stack: Pure Native JavaScript (ES6+), HTML5, CSS3 Custom Properties (Zero external dependencies, zero compilation/build step)
-- Data Persistence: Browser local storage (chrome.storage.local, 10MB quota, 100% offline, privacy-first)
+- Data Persistence: Browser local storage (chrome.storage.local, 10MB quota, privacy-first). Saved data never leaves the browser; network access is limited to Threads domains (live preview and background updates) plus the Google Fonts stylesheets imported by popup.css and dashboard.css.
 - Accessibility: In-page modals only (no native confirm/alert/prompt), focus trapping, live regions, 4.5:1 contrast, undersized hit targets enlarged to at least 24x24px, 12px minimum font size, prefers-reduced-motion support
 - License: MIT ([LICENSE](./LICENSE))
 - Source Repository: https://github.com/Scorpio-meow/threads-embedded-code
@@ -16,7 +16,7 @@
 - manifest.json: Extension configuration manifest declaring Manifest V3 specs, permissions (storage, tabs, scripting), host matches for threads.com and threads.net, `all_frames: true` content script injection, and strict CSP headers.
 - content.js: Primary Content Script. On Threads pages it observes DOM mutations, intercepts the official embed dialog, scores embed candidates, extracts top-level text containers, filters image-only descriptions, and strips UI/timestamp noise. Inside `/embed` iframes it switches to `handleEmbedFrameResize()` and reports the measured `.Embed` height to the parent window.
 - styles.css: Injected notification styles for Threads web pages, including live-region toast styling and prefers-reduced-motion fallbacks.
-- popup.html: 400px width browser toolbar popup markup, including the confirm, import-source, import-paste, and import-mode modals.
+- popup.html: 480px width browser toolbar popup markup, including the confirm, import-source, import-paste, and import-mode modals.
 - popup.css: Toolbar popup stylesheet featuring dark theme tokens, responsive card lists, and reduced-motion support.
 - popup.js: Toolbar popup controller supporting debounced keyword search (180ms), 6 sorting rules, 6 filter categories, single-item maintenance, undoable deletion, in-page modals, file/paste import, and selection-aware export.
 - dashboard.html: Full-page management dashboard markup including the Live Preview modal (with loading and error states), statistical clouds, batch action toolbar, and confirmation/import modals.
@@ -175,7 +175,7 @@ All three exports are selection-aware: when posts are checked only those are exp
        }
    ];
    ```
-3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Complete SavedArticle fields)
+3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Content, timestamp, tag, and expiry fields. It omits `id` and `authorUrl`: import generates a new `id` and leaves `authorUrl` empty.)
    ```javascript
    const posts = [
        {
