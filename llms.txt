@@ -3,7 +3,7 @@
 
 ## Core Metadata
 - Project Name: Threads Code Saver
-- Current Version: 2.1.0
+- Current Version: 2.2.0
 - Specification: Google Chrome Extensions Manifest V3
 - Tech Stack: Pure Native JavaScript (ES6+), HTML5, CSS3 Custom Properties (Zero external dependencies, zero compilation/build step)
 - Data Persistence: Browser local storage (chrome.storage.local, 10MB quota, privacy-first). Saved data never leaves the browser; network access is limited to Threads domains (live preview and background updates) plus the Google Fonts stylesheets imported by popup.css and dashboard.css.
@@ -56,9 +56,6 @@ interface SavedArticle {
   /** Author username handle including @ prefix (e.g., "@username") */
   author: string;
 
-  /** Author's Threads profile page URL */
-  authorUrl: string;
-
   /** Array of extracted hashtags and keyword tags */
   tags: string[];
 
@@ -81,6 +78,9 @@ interface SavedArticle {
   importedFrom?: 'full-data-file' | 'js-embed-file';
 }
 ```
+
+### Removed in 2.2.0
+- The `authorUrl` field was removed. Nothing read it (UI, search, filters, statistics, and all three exports ignored it), and it can be derived from `author` or `postLink`. Newly saved and imported records no longer include it; records saved by older versions may still hold a stale value, which nothing reads.
 
 ### Removed in 2.1.0 (Breaking Change)
 - The `codeBlocks: CodeBlock[]` and `codeCount: number` fields, the `CodeBlock` interface, and all related UI (code cards, code search, code copy buttons, and the code import field) were removed.
@@ -175,7 +175,7 @@ All three exports are selection-aware: when posts are checked only those are exp
        }
    ];
    ```
-3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Content, timestamp, tag, and expiry fields. It omits `id` and `authorUrl`: import generates a new `id` and leaves `authorUrl` empty.)
+3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Content, timestamp, tag, and expiry fields. It omits `id`, and import generates a new one.)
    ```javascript
    const posts = [
        {

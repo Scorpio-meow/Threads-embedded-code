@@ -441,16 +441,11 @@ function extractPostLinkFromEmbedCode(embedCode) {
   const urlMatch = embedCode.match(/https?:\/\/(?:www\.)?threads\.com\/@[^"'\s<]+\/post\/[^"'\s<]+/i);
   return urlMatch ? urlMatch[0] : '';
 }
-function extractAuthorUrlFromPostLink(postLink) {
+function extractAuthorNameFromPostLink(postLink) {
   if (!postLink) {
     return '';
   }
-  const authorMatch = postLink.match(/^(https?:\/\/(?:www\.)?threads\.com\/@[^\/?#]+)\/post\//i);
-  return authorMatch ? authorMatch[1] : '';
-}
-function extractAuthorNameFromPostLink(postLink) {
-  const authorUrl = extractAuthorUrlFromPostLink(postLink);
-  const authorMatch = authorUrl.match(/\/@([^\/?#]+)$/i);
+  const authorMatch = postLink.match(/^https?:\/\/(?:www\.)?threads\.com\/@([^\/?#]+)\/post\//i);
   return authorMatch ? authorMatch[1] : '';
 }
 function findAuthorLinkInPost(postElement) {
@@ -472,20 +467,10 @@ function findAuthorLinkInPost(postElement) {
   const preferredCandidates = labelCandidates.length > 0 ? labelCandidates : candidates;
   return preferredCandidates.find((link) => getElementLabelText(link)) || preferredCandidates[0] || null;
 }
-function extractAuthorDataFromPost(postElement, postLink) {
+function extractAuthorFromPost(postElement, postLink) {
   const authorLink = findAuthorLinkInPost(postElement);
-  let author = authorLink ? getElementLabelText(authorLink) : '';
-  let authorUrl = authorLink?.href || '';
-  if (!authorUrl) {
-    authorUrl = extractAuthorUrlFromPostLink(postLink);
-  }
-  if (!author) {
-    author = extractAuthorNameFromPostLink(postLink);
-  }
-  return {
-    author,
-    authorUrl
-  };
+  const author = authorLink ? getElementLabelText(authorLink) : '';
+  return author || extractAuthorNameFromPostLink(postLink);
 }
 function extractPostTimestampFromElement(postElement) {
   const timeElement = postElement?.querySelector('time[datetime]');
@@ -546,14 +531,8 @@ async function saveArticleFromEmbedDialog(dialog, context = {}) {
   const postElement = context.postElement || findPostElementFromPostLink(postLink);
   const finalContent = (context.preContent || (postElement ? extractPostContent(postElement) : '') || extractContentFromMeta() || '').trim();
   let finalAuthor = (context.preAuthor || '').trim();
-  let finalAuthorUrl = (context.preAuthorUrl || '').trim();
-  if ((!finalAuthor || !finalAuthorUrl) && postElement) {
-    const authorData = extractAuthorDataFromPost(postElement, postLink);
-    finalAuthor = finalAuthor || authorData.author;
-    finalAuthorUrl = finalAuthorUrl || authorData.authorUrl;
-  }
-  if (!finalAuthorUrl) {
-    finalAuthorUrl = extractAuthorUrlFromPostLink(postLink);
+  if (!finalAuthor && postElement) {
+    finalAuthor = extractAuthorFromPost(postElement, postLink);
   }
   if (!finalAuthor) {
     finalAuthor = extractAuthorNameFromPostLink(postLink);
@@ -568,7 +547,6 @@ async function saveArticleFromEmbedDialog(dialog, context = {}) {
     savedAt: new Date().toISOString(),
     content: finalContent,
     author: finalAuthor || '未知作者',
-    authorUrl: finalAuthorUrl,
     tags: extractTags(finalContent, postElement)
   };
   console.log('[Threads Saver] 準備儲存嵌入對話框內容:', articleData.postLink);
@@ -594,20 +572,13 @@ async function processOpenEmbedDialogs() {
       : dialog.closest('[data-pressable-container]') ||
       dialog.closest('article') ||
       dialog.closest('[role="article"]'); const preContent = postElement ? extractPostContent(postElement) : '';
-    let preAuthor = '';
-    let preAuthorUrl = '';
-    if (postElement) {
-      const authorData = extractAuthorDataFromPost(postElement, postLink);
-      preAuthor = authorData.author;
-      preAuthorUrl = authorData.authorUrl;
-    }
+    const preAuthor = postElement ? extractAuthorFromPost(postElement, postLink) : '';
     console.log('[Threads Saver] 偵測到可直接讀取的內嵌對話框');
     try {
       await saveArticleFromEmbedDialog(dialog, {
         postElement,
         postLink,
-        preAuthor,
-        preAuthorUrl
+        preAuthor
       });
       dialog.dataset.threadsSaverSaved = 'true';
     } finally {
@@ -636,7 +607,6 @@ function addSaveButtons() {
       console.log('[Threads Saver] 偵測到「取得內嵌程式碼」被點擊');
       let preContent = '';
       let preAuthor = '';
-      let preAuthorUrl = '';
       const postElement =
         embedButton.closest('[data-pressable-container]') ||
         embedButton.closest('[data-pagelet="threads_post_page_0"]') ||
@@ -651,7 +621,6 @@ function addSaveButtons() {
         const authorLink = postElement.querySelector('a[role="link"][href*="/@"]');
         if (authorLink) {
           preAuthor = authorLink.innerText || '';
-          preAuthorUrl = authorLink.href || '';
           console.log('[Threads Saver] 點擊前提取到作者:', preAuthor);
         }
       } else {
@@ -674,8 +643,7 @@ function addSaveButtons() {
         try {
           await saveArticleFromEmbedDialog(dialog, {
             postElement,
-            preAuthor,
-            preAuthorUrl
+            preAuthor
           });
           dialog.dataset.threadsSaverSaved = 'true';
         } finally {

@@ -7,7 +7,7 @@
 **[前往介紹頁](https://scorpio-meow.github.io/Threads-embedded-code/)**：功能導覽、互動清洗示範與安裝教學
 
 [![Website](https://img.shields.io/badge/Website-GitHub_Pages-D12F35?style=for-the-badge&logo=githubpages&logoColor=white)](https://scorpio-meow.github.io/Threads-embedded-code/)
-[![Version](https://img.shields.io/badge/version-2.1.0-blue?style=for-the-badge)](./manifest.json)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue?style=for-the-badge)](./manifest.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](./LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](#技術規格與技術棧)
@@ -188,7 +188,6 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 | :--- | :--- | :--- |
 | **貼文內文** | `string` | 經過去除 UI 雜訊與中繼標籤後的純文字（保留完整段落換行） |
 | **發文作者** | `string` | 發文者帳號（格式為 `@username`） |
-| **作者主頁** | `string` | 發文者的 Threads 個人主頁完整網址 |
 | **發文時間** | `string` | 包含標準 ISO 8601 時間字串與格式化標題文字 |
 | **標籤清單** | `string[]` | 結合官方 Hashtag 與內文技術關鍵字自動映射的標籤陣列 |
 | **內嵌代碼** | `string` | Threads 官方原生的標準 `<blockquote>` 嵌入代碼 |
@@ -620,9 +619,6 @@ interface SavedArticle {
   /** 發文者帳號 (包含 @ 前綴，如 "@username") */
   author: string;
 
-  /** 發文者 Threads 個人首頁網址 */
-  authorUrl: string;
-
   /** 分類標籤清單 (包含 Hashtag 與技術關鍵字) */
   tags: string[];
 
@@ -694,7 +690,7 @@ interface SavedArticle {
 | :--- | :--- | :--- | :--- |
 | **簡易版嵌入碼 (Embed Only)** | `threads-embed-codes-YYYY-MM-DD.js` | `const posts = ['<blockquote>...</blockquote>', ...];` | 專為靜態網頁快速引用設計，已自動移除重複的 script 標籤並轉義引號。 |
 | **精選貼文資料 (Featured Data)** | `threads-featured-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, tags }, ...];` | 專為關聯專案 [Threads-Featured-Posts](https://github.com/Scorpio-meow/Threads-Featured-Posts) 設計，author 欄位自動去除 `@` 前綴以利作為 Key 或展示標籤使用。 |
-| **完整版備份資料 (Full Data)** | `threads-full-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status, ... }, ...];` | 包含內文、時間、標籤與失效狀態等欄位，適用於跨裝置備份、資料遷移與災難還原。不含 `id` 與 `authorUrl`：匯入時會重新產生 `id`，`authorUrl` 則為空值。 |
+| **完整版備份資料 (Full Data)** | `threads-full-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status, ... }, ...];` | 包含內文、時間、標籤與失效狀態等欄位，適用於跨裝置備份、資料遷移與災難還原。不含 `id`，匯入時會重新產生。 |
 
 ### 匯出檔案範例
 
@@ -860,6 +856,17 @@ cd threads-embedded-code
 ## 版本更新紀錄 (Changelog)
 
 本專案嚴格遵循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/) 格式規範。
+
+### [2.2.0] - 2026-09-23
+
+#### 新增
+- 新增 GitHub Pages 介紹頁（`docs/`）：功能導覽、直接執行 `content.js` 清洗函式的互動示範、匯出格式、權限說明與安裝教學；README 頂部提供連結。
+
+#### 修正
+- 更正 README 與 llms.txt 中與實際行為不符的說明：彈出視窗寬度為 480px、復原提示位於畫面下方中央、對外連線僅限 Threads 官方網域與 Google Fonts 字型、完整備份不含 `id`。
+
+#### 移除
+- 移除 `authorUrl` 欄位。介面、搜尋、篩選、統計與三種匯出都未讀取這個值，且可由 `author` 或 `postLink` 推得；新儲存與匯入的貼文不再寫入，舊版本機紀錄可能殘留無人讀取的舊值。
 
 ### [2.1.0] - 2026-09-19
 

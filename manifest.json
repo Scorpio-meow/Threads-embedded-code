@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Threads 程式碼儲存器",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "一鍵儲存 Threads 貼文的官方內嵌代碼與中繼資料，支援本機管理、即時預覽、批次更新與多格式匯出",
   "permissions": [
     "storage",
