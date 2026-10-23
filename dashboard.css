@@ -1155,11 +1155,9 @@ p {
     margin: 40px auto;
 }
 
-.empty-icon {
-    width: 68px;
-    height: 68px;
-    color: var(--primary-blue-hover);
-    opacity: 0.28;
+.empty-mascot {
+    width: 112px;
+    height: auto;
     margin-bottom: 20px;
 }
 
@@ -1493,6 +1491,10 @@ p {
         width: 100%;
         justify-content: space-between;
         flex-wrap: wrap;
+    }
+
+    .nav-left {
+        justify-content: flex-start;
     }
 
     .nav-title {

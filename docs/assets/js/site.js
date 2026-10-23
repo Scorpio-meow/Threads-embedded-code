@@ -1,5 +1,7 @@
 (() => {
   const root = document.documentElement;
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const { repo, branch } = root.dataset;
   const textSegmenter = new Intl.Segmenter('zh-TW', { granularity: 'grapheme' });
   window.ThreadsSaverSite = Object.freeze({
@@ -9,7 +11,10 @@
     streamText
   });
   const liveRegion = createLiveRegion();
+  syncThemedImages();
+  systemDark.addEventListener('change', syncThemedImages);
   setupThemeToggle();
+  setupDemoVideos();
   setupMenu();
   setupNavState();
   setupReveal();
@@ -47,10 +52,58 @@
     }
     target.replaceChildren(spoken, visual);
   }
+  function syncThemedImages() {
+    const theme = root.dataset.theme;
+    const media = theme === 'dark' ? 'all' : theme === 'light' ? 'not all' : '(prefers-color-scheme: dark)';
+    const dark = theme ? theme === 'dark' : systemDark.matches;
+    document.querySelectorAll('source[data-dark-source]').forEach((source) => {
+      if (source.media !== media) source.media = media;
+    });
+    document.querySelectorAll('video[data-dark-poster]').forEach((video) => {
+      const poster = dark ? video.dataset.darkPoster : video.dataset.lightPoster;
+      if (video.getAttribute('poster') !== poster) video.poster = poster;
+      const wanted = video.querySelector(dark ? 'source[data-dark-source]' : 'source:not([data-dark-source])').src;
+      if (!video.currentSrc || video.currentSrc === wanted) return;
+      const resume = !video.paused;
+      video.load();
+      if (resume) video.play().catch(() => { });
+    });
+  }
+  function setupDemoVideos() {
+    document.querySelectorAll('[data-demo-video]').forEach((video) => {
+      const toggle = video.parentElement.querySelector('[data-video-toggle]');
+      const label = toggle.querySelector('[data-video-toggle-label]');
+      const icon = toggle.querySelector('use');
+      let visible = false;
+      let userPaused = false;
+      const render = () => {
+        const playing = !video.paused;
+        label.textContent = playing ? '暫停示範' : '播放示範';
+        icon.setAttribute('href', `assets/icons.svg#${playing ? 'i-pause' : 'i-play'}`);
+      };
+      const autoplay = () => {
+        if (visible && !userPaused && !reduceMotion.matches) video.play().catch(() => { });
+        else if (!visible || reduceMotion.matches) video.pause();
+      };
+      toggle.addEventListener('click', () => {
+        userPaused = !video.paused;
+        if (userPaused) video.pause();
+        else video.play().catch(() => { });
+      });
+      video.addEventListener('play', render);
+      video.addEventListener('pause', render);
+      reduceMotion.addEventListener('change', autoplay);
+      new IntersectionObserver((entries) => {
+        visible = entries[0].isIntersecting;
+        autoplay();
+      }).observe(video);
+      toggle.hidden = false;
+      render();
+    });
+  }
   function setupThemeToggle() {
     const button = document.querySelector('[data-theme-toggle]');
     if (!button) return;
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
     const effectiveTheme = () => root.dataset.theme || (systemDark.matches ? 'dark' : 'light');
     const sync = () => button.setAttribute('aria-pressed', String(effectiveTheme() === 'dark'));
     button.addEventListener('click', () => {
@@ -59,6 +112,7 @@
       try {
         localStorage.setItem('theme', next);
       } catch (_) { }
+      syncThemedImages();
       sync();
     });
     systemDark.addEventListener('change', sync);

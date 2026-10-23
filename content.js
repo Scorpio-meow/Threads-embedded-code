@@ -23,7 +23,7 @@ async function safeStorageGet(keys) {
     return await chrome.storage.local.get(keys);
   } catch (err) {
     if (String(err).includes('Extension context invalidated')) {
-      console.warn('[Threads Saver] 擴充功能內容被重新載入，忽略本次讀取');
+      console.warn('[Threadkeep] 擴充功能內容被重新載入，忽略本次讀取');
       return {};
     }
     throw err;
@@ -35,7 +35,7 @@ async function safeStorageSet(obj) {
     await chrome.storage.local.set(obj);
   } catch (err) {
     if (String(err).includes('Extension context invalidated')) {
-      console.warn('[Threads Saver] 擴充功能內容被重新載入，忽略本次寫入');
+      console.warn('[Threadkeep] 擴充功能內容被重新載入，忽略本次寫入');
       return;
     }
     throw err;
@@ -127,7 +127,7 @@ function init() {
     return;
   }
   if (!document.body) {
-    console.warn('[Threads Saver] document.body 不存在，延遲初始化');
+    console.warn('[Threadkeep] document.body 不存在，延遲初始化');
     setTimeout(init, 500);
     return;
   }
@@ -518,13 +518,13 @@ function extractEmbedCodeFromDialog(dialog) {
 async function saveArticleFromEmbedDialog(dialog, context = {}) {
   const embedCode = extractEmbedCodeFromDialog(dialog);
   if (!embedCode) {
-    console.warn('[Threads Saver] 對話框中沒有可讀取的內嵌程式碼');
+    console.warn('[Threadkeep] 對話框中沒有可讀取的內嵌程式碼');
     showNotification('找不到可儲存的內嵌程式碼', { type: 'error' });
     return;
   }
   const postLink = extractPostLinkFromEmbedCode(embedCode) || context.postLink || context.postElement?.querySelector('a[href*="/post/"], a[href*="/t/"]')?.href || '';
   if (!postLink) {
-    console.error('[Threads Saver] 無法從內嵌程式碼提取貼文連結');
+    console.error('[Threadkeep] 無法從內嵌程式碼提取貼文連結');
     showNotification('無法取得貼文連結', { type: 'error' });
     return;
   }
@@ -673,7 +673,7 @@ function handleEmbedTriggerClick(e) {
     }
     if (threadsErrorShown) {
       stopWaiting();
-      console.warn('[Threads Saver] Threads 顯示錯誤訊息，沒有產生內嵌程式碼');
+      console.warn('[Threadkeep] Threads 顯示錯誤訊息，沒有產生內嵌程式碼');
       showNotification('Threads 回報錯誤，請稍後再試', { type: 'error' });
       return;
     }
@@ -682,10 +682,10 @@ function handleEmbedTriggerClick(e) {
     }
     stopWaiting();
     if (dialogs.length > 0) {
-      console.warn('[Threads Saver] 對話框中沒有可讀取的內嵌程式碼');
+      console.warn('[Threadkeep] 對話框中沒有可讀取的內嵌程式碼');
       showNotification('找不到可儲存的內嵌程式碼', { type: 'error' });
     } else if (!sawDialog) {
-      console.error('[Threads Saver] 找不到對話框');
+      console.error('[Threadkeep] 找不到對話框');
       showNotification('找不到內嵌程式碼對話框', { type: 'error' });
     }
   }, EMBED_DIALOG_POLL_MS);
@@ -718,21 +718,15 @@ function extractTags(text, container = null) {
         }
       });
     } catch (err) {
-      console.warn('[Threads Saver] 從 DOM 抓取 tags 失敗:', err);
+      console.warn('[Threadkeep] 從 DOM 抓取 tags 失敗:', err);
     }
   }
-  const hashtagRegex = /#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
+  const textWithoutUrls = String(text || '').replace(/(?:https?:\/\/|www\.)\S+/gi, ' ');
+  const hashtagRegex = /(?<![\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{N}\p{M}_&\/])[#\uff03](?![\ufe0f\u20e3])([\p{L}\p{M}\p{N}_]*\p{L}[\p{L}\p{M}\p{N}_]*)/gu;
   let match;
-  while ((match = hashtagRegex.exec(text)) !== null) {
+  while ((match = hashtagRegex.exec(textWithoutUrls)) !== null) {
     tags.push(match[1]);
   }
-  const languages = ['JavaScript', 'Python', 'Java', 'C\\+\\+', 'C#', 'HTML', 'CSS', 'SQL', 'TypeScript', 'React', 'Vue', 'Angular'];
-  languages.forEach(lang => {
-    const pattern = lang.includes('\\') ? lang : `\\b${lang}\\b`;
-    if (new RegExp(pattern, 'i').test(text)) {
-      tags.push(lang.replace(/\\\+/g, '+'));
-    }
-  });
   const seenTags = new Set();
   return tags
     .map(t => t.normalize('NFC'))
@@ -754,7 +748,7 @@ async function recordEmbeddable(storageKey, postLink) {
       await safeStorageSet({ [storageKey]: article });
     }
   } catch (error) {
-    console.warn('[Threads Saver] 記錄內嵌檢查結果失敗:', error);
+    console.warn('[Threadkeep] 記錄內嵌檢查結果失敗:', error);
   }
 }
 async function saveArticle(articleData, button) {
@@ -763,7 +757,7 @@ async function saveArticle(articleData, button) {
       try {
         await migrateLegacyArticles();
       } catch (migrateError) {
-        console.warn('[Threads Saver] 舊資料搬移失敗，本篇仍會單獨儲存:', migrateError);
+        console.warn('[Threadkeep] 舊資料搬移失敗，本篇仍會單獨儲存:', migrateError);
       }
     }
     const storageKey = getArticleStorageKey(articleData);
@@ -771,14 +765,14 @@ async function saveArticle(articleData, button) {
     const isExisting = storageKey in result;
     if (isExisting) {
       await safeStorageSet({ [storageKey]: { ...pickEmbeddableFields(result[storageKey]), ...articleData } });
-      console.info('[Threads Saver] 已更新', storageKey);
+      console.info('[Threadkeep] 已更新', storageKey);
       if (button) {
         button.classList.add('saved');
       }
       showNotification('內嵌程式碼已更新');
     } else {
       await safeStorageSet({ [storageKey]: articleData });
-      console.info('[Threads Saver] 已儲存', storageKey);
+      console.info('[Threadkeep] 已儲存', storageKey);
       if (button) {
         button.classList.add('saved');
         button.innerHTML = `
@@ -792,9 +786,9 @@ async function saveArticle(articleData, button) {
     }
     void recordEmbeddable(storageKey, articleData.postLink);
   } catch (error) {
-    console.error('[Threads Saver] 儲存失敗:', error);
+    console.error('[Threadkeep] 儲存失敗:', error);
     if (error.message && (error.message.includes('QUOTA') || error.message.includes('quota'))) {
-      showNotification('儲存空間已滿!請開啟擴充功能清理舊文章', { type: 'error' });
+      showNotification('儲存空間已滿!請開啟擴充功能清理舊貼文', { type: 'error' });
     } else if (error.message && error.message.includes('Extension context invalidated')) {
       showNotification('擴充功能已失效,請重新載入頁面', { type: 'error' });
     } else {

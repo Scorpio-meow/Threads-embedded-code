@@ -13,7 +13,7 @@
 ## 測試方式
 
 - 瀏覽器與版本：
-- 手動測試的項目（參考 [CONTRIBUTING.md 的手動測試清單](https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/CONTRIBUTING.md#手動測試清單)）：
+- 手動測試的項目（參考 [CONTRIBUTING.md 的手動測試清單](https://github.com/Scorpio-meow/Threadkeep/blob/main/CONTRIBUTING.md#手動測試清單)）：
 
 ## 檢查清單
 

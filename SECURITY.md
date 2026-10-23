@@ -6,8 +6,8 @@
 
 | 版本 | 安全修正 |
 |---|---|
-| 2.4.x（`main` 最新版） | ✅ |
-| 2.3.x 以前 | ❌ |
+| 2.7.x（`main` 最新版） | ✅ |
+| 2.6.x 以前 | ❌ |
 
 ## 回報漏洞
 
@@ -15,8 +15,8 @@
 
 請擇一管道私下回報：
 
-1. **GitHub 私下回報（建議）**：到本專案的 **Security** 分頁按 **Report a vulnerability**，或直接開啟[私下回報表單](https://github.com/Scorpio-meow/Threads-embedded-code/security/advisories/new)。內容只有你和維護者看得到。
-2. **電子郵件**：無法使用 GitHub 時，寄到 [yao921024@gmail.com](mailto:yao921024@gmail.com)，主旨開頭加上 `[Security] Threads-embedded-code`。電子郵件不是端對端加密，信裡先簡述問題就好，細節等收到回覆後再提供。
+1. **GitHub 私下回報（建議）**：到本專案的 **Security** 分頁按 **Report a vulnerability**，或直接開啟[私下回報表單](https://github.com/Scorpio-meow/Threadkeep/security/advisories/new)。內容只有你和維護者看得到。
+2. **電子郵件**：無法使用 GitHub 時，寄到 [yao921024@gmail.com](mailto:yao921024@gmail.com)，主旨開頭加上 `[Security] Threadkeep`。電子郵件不是端對端加密，信裡先簡述問題就好，細節等收到回覆後再提供。
 
 回報時請盡量附上：
 
@@ -39,7 +39,7 @@
 1. **確認收到**：回覆已收到，並說明初步評估。
 2. **評估**：確認是否屬於漏洞、影響範圍與嚴重程度，必要時向你詢問細節；不屬於漏洞時會說明原因。
 3. **修正**：在私下的 GitHub Security Advisory 中與你討論修正方式，你也可以在其中的私人分支提交修正；必要時會請你協助驗證。
-4. **發布**：把修正合併到 `main`、公開 Security Advisory，適用時透過 GitHub 申請 CVE 編號，並在 README 的[版本更新紀錄](https://github.com/Scorpio-meow/Threads-embedded-code/blob/HEAD/README.md#版本更新紀錄-changelog)「安全性」段落記錄。
+4. **發布**：把修正合併到 `main`、公開 Security Advisory，適用時透過 GitHub 申請 CVE 編號，並在 [CHANGELOG.md](https://github.com/Scorpio-meow/Threadkeep/blob/HEAD/CHANGELOG.md) 該版本的「安全性」段落記錄。
 5. **致謝**：你願意的話，會在 Advisory 中列名致謝。
 
 修正發布前請不要公開漏洞細節。90 天內來不及修正時，會在期限前向你說明原因，並協商新的公開日期。

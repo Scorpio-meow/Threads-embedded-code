@@ -5,14 +5,14 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>已儲存的 Threads 文章</title>
+  <title>Threadkeep</title>
   <link rel="stylesheet" href="popup.css">
   <script src="theme.js"></script>
 </head>
 
 <body>
   <header class="header">
-    <h1>已儲存的程式碼</h1>
+    <h1>已儲存的貼文</h1>
     <div class="header-actions">
       <button class="btn btn-small btn-dashboard" id="openDashboardBtn" title="開啟全頁儀表板">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -55,7 +55,7 @@
       <div class="filter-container">
         <label for="filterSelect">篩選：</label>
         <select id="filterSelect" class="filter-select">
-          <option value="all">全部文章</option>
+          <option value="all">全部貼文</option>
           <option value="author">按作者</option>
           <option value="tag">按標籤</option>
           <option value="noContent">無內文</option>
@@ -89,11 +89,9 @@
       <h2 class="sr-only" id="articleListHeading" tabindex="-1">貼文列表</h2>
       <div class="article-list" id="articlesContainer">
         <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" />
-          </svg>
-          <p>尚未儲存任何程式碼</p>
-          <p class="empty-help">在 Threads 含程式碼的文章旁點擊儲存按鈕</p>
+          <img class="empty-mascot" src="images/mascot-320.webp" alt="" width="320" height="334">
+          <p>尚未儲存任何貼文</p>
+          <p class="empty-help">在 Threads 貼文選單點「取得內嵌程式碼」</p>
         </div>
       </div>
       <div class="load-more-container" id="loadMoreContainer"></div>

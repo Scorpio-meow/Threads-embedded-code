@@ -38,7 +38,7 @@
 
 請透過 GitHub 回報：
 
-- **私下回報給維護者**：到本專案的 [Security 分頁送出私密報告](https://github.com/Scorpio-meow/Threads-embedded-code/security/advisories/new)，標題開頭請註明「行為準則」。這個管道原本用於安全漏洞，但內容只有維護者看得到，因此也用來收行為準則的檢舉。
+- **私下回報給維護者**：到本專案的 [Security 分頁送出私密報告](https://github.com/Scorpio-meow/Threadkeep/security/advisories/new)，標題開頭請註明「行為準則」。這個管道原本用於安全漏洞，但內容只有維護者看得到，因此也用來收行為準則的檢舉。
 - **回報給 GitHub**：在違規的留言或帳號上使用「Report content」或「Block or report」，交由 GitHub 審查。
 
 請盡量附上發生的位置（Issue 或 PR 連結）、時間與經過。維護者會盡速且公正地審查每一份檢舉，並對檢舉人的身分與內容保密。

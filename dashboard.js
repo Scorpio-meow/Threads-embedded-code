@@ -412,7 +412,7 @@ function closeConfirmModal(result) {
   }
 }
 function showImportModal(count) {
-  document.getElementById('importModalMessage').textContent = `偵測到檔案中含有 ${count} 筆文章資料。請選擇匯入模式：`;
+  document.getElementById('importModalMessage').textContent = `偵測到檔案中含有 ${count} 筆貼文資料。請選擇匯入模式：`;
   activateModal('importModal', {
     initialFocusId: 'importModeMerge',
     onDismiss: () => closeImportModal(null)
@@ -619,9 +619,9 @@ function renderArticles({ keepRendered = false } = {}) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-      <p class="empty-title">${allArticles.length === 0 ? '尚未儲存任何程式碼' : '找不到符合的貼文'}</p>
-      <p class="empty-description">${allArticles.length === 0 ? '請在 Threads 上有程式碼的貼文旁，點選「取得內嵌程式碼」，擴充功能會自動儲存至此面板。' : '請嘗試更換篩選條件或搜尋關鍵字。'}</p>
+      <img class="empty-mascot" src="images/mascot-320.webp" alt="" width="320" height="334">
+      <p class="empty-title">${allArticles.length === 0 ? '尚未儲存任何貼文' : '找不到符合的貼文'}</p>
+      <p class="empty-description">${allArticles.length === 0 ? '在 Threads 貼文選單點「取得內嵌程式碼」，就會自動存到這裡。' : '請嘗試更換篩選條件或搜尋關鍵字。'}</p>
     `;
     container.appendChild(empty);
     updateSelectionUI();
@@ -1111,7 +1111,7 @@ function createProgressToast(initialMessage) {
 async function batchCopyEmbedCodes() {
   const targets = allArticles.filter(a => selectedArticleIds.has(a.id) && a.embedCode);
   if (targets.length === 0) {
-    showToast('選取文章中不包含任何內嵌程式碼');
+    showToast('選取的貼文中不包含任何內嵌程式碼');
     return;
   }
   const codes = targets.map(article => {
@@ -1131,7 +1131,7 @@ async function deleteArticle(articleId) {
   const authorName = article ? article.author : '此貼文';
   const confirmed = await showConfirm(
     '刪除貼文確認',
-    `您確定要刪除由 ${authorName} 發布的儲存程式碼嗎？刪除後可在短時間內使用「復原」還原。`,
+    `您確定要刪除由 ${authorName} 發布的貼文嗎？刪除後可在短時間內使用「復原」還原。`,
     { confirmText: '刪除' }
   );
   if (!confirmed) return;
@@ -1148,7 +1148,7 @@ async function batchDeleteArticles() {
   const count = selectedArticleIds.size;
   const confirmed = await showConfirm(
     '批次刪除確認',
-    `您確定要刪除已選取的 ${count} 篇文章嗎？刪除後可在短時間內使用「復原」還原。`,
+    `您確定要刪除已選取的 ${count} 篇貼文嗎？刪除後可在短時間內使用「復原」還原。`,
     { confirmText: `刪除 ${count} 篇` }
   );
   if (!confirmed) return;
@@ -1164,7 +1164,7 @@ async function batchDeleteArticles() {
 }
 async function clearAllArticles() {
   if (allArticles.length === 0) {
-    showToast('目前無任何文章資料');
+    showToast('目前沒有任何貼文資料');
     return;
   }
   const confirmed = await showConfirm(
@@ -1200,18 +1200,18 @@ async function updateAllTimestamps() {
     ? filteredArticles.filter(a => selectedArticleIds.has(a.id))
     : filteredArticles;
   if (baseArticles.length === 0) {
-    showToast('沒有文章可以更新');
+    showToast('沒有貼文可以更新');
     return;
   }
   const articlesNeedingUpdate = baseArticles.filter(a => a.postLink);
   if (articlesNeedingUpdate.length === 0) {
-    showToast('沒有有效的文章連結');
+    showToast('沒有有效的貼文連結');
     return;
   }
   const isBatch = selectedArticleIds.size > 0;
   const confirmed = await showConfirm(
     '更新貼文資料',
-    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇文章的精確發文時間和內文嗎？\n\n系統將重用單一背景分頁依序快速抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`,
+    `確定要更新${isBatch ? '已選取的' : '全部'} ${articlesNeedingUpdate.length} 篇貼文的精確發文時間和內文嗎？\n\n系統將重用單一背景分頁依序快速抓取 Threads 貼文，可能需要一些時間。抓取完畢後分頁將自動關閉。`,
     { confirmText: '開始更新', danger: false }
   );
   if (!confirmed) return;
@@ -1870,7 +1870,7 @@ function parseJsEmbedFile(content) {
       const postLink = linkMatch ? linkMatch[1] : '';
       if (postLink) {
         const usernameMatch = postLink.match(/threads\.(?:com)\/@([^\/]+)/);
-        const username = usernameMatch ? `@${usernameMatch[1]}` : '匯入的文章';
+        const username = usernameMatch ? `@${usernameMatch[1]}` : '匯入的貼文';
         const fullEmbedCode = embedCode + '\n<script async src="https://www.threads.com/embed.js"></script>';
         articles.push({
           id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -2157,7 +2157,7 @@ function renderRawPane(article) {
     <h3>貼文中繼資料 (Post Metadata)</h3>
     <table class="preview-meta-table">
       <tbody>
-        <tr><th scope="row">文章識別碼 (ID)</th><td><code>${escapeHtml(article.id || 'N/A')}</code></td></tr>
+        <tr><th scope="row">貼文識別碼 (ID)</th><td><code>${escapeHtml(article.id || 'N/A')}</code></td></tr>
         <tr><th scope="row">作者帳號</th><td>${escapeHtml(article.author || 'N/A')}</td></tr>
         <tr><th scope="row">貼文連結</th><td><a href="${safePostLink}" target="_blank" rel="noopener noreferrer">${escapeHtml(article.postLink || 'N/A')}</a></td></tr>
         <tr><th scope="row">發文時間</th><td>${escapeHtml(postTimeStr)}</td></tr>

@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="zh-Hant-TW" data-repo="Scorpio-meow/Threads-embedded-code" data-branch="main">
+<html lang="zh-Hant-TW" data-repo="Scorpio-meow/Threadkeep" data-branch="main">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Threads 程式碼儲存器｜自動收藏 Threads 貼文的瀏覽器擴充功能</title>
+  <title>Threadkeep｜自動收藏 Threads 貼文的瀏覽器擴充功能</title>
   <meta name="description"
     content="免費開源的 Chromium 擴充功能。在 Threads 點「取得內嵌程式碼」時，自動存下官方內嵌碼、內文、作者、發文時間與標籤；資料只存在你的瀏覽器，可即時預覽、背景更新，並匯出成三種格式。">
   <meta name="theme-color" content="#f5f5f3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
-  <link rel="canonical" href="https://scorpio-meow.github.io/Threads-embedded-code/">
+  <link rel="canonical" href="https://scorpio-meow.github.io/Threadkeep/">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_TW">
-  <meta property="og:site_name" content="Threads 程式碼儲存器">
-  <meta property="og:title" content="Threads 程式碼儲存器">
+  <meta property="og:site_name" content="Threadkeep">
+  <meta property="og:title" content="Threadkeep">
   <meta property="og:description" content="取得內嵌碼的那一刻，貼文已經存好。本機儲存、即時預覽、背景更新與三種匯出格式。">
-  <meta property="og:url" content="https://scorpio-meow.github.io/Threads-embedded-code/">
-  <meta property="og:image" content="https://scorpio-meow.github.io/Threads-embedded-code/assets/img/og-image.png">
+  <meta property="og:url" content="https://scorpio-meow.github.io/Threadkeep/">
+  <meta property="og:image" content="https://scorpio-meow.github.io/Threadkeep/assets/img/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Threads 程式碼儲存器的控制面板畫面與天蠍貓吉祥物">
+  <meta property="og:image:alt" content="Threadkeep 的控制面板畫面與天蠍貓吉祥物">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192.png">
@@ -30,7 +30,10 @@
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300..600&family=Manrope:wght@300..800&family=Noto+Sans+TC:wght@300..900&display=swap">
   <link rel="preload" as="image" href="assets/img/shot-dashboard-1600.webp"
     imagesrcset="assets/img/shot-dashboard-960.webp 960w, assets/img/shot-dashboard-1600.webp 1600w"
-    imagesizes="(min-width: 1280px) 1000px, 84vw">
+    imagesizes="(min-width: 1280px) 1000px, 84vw" media="(prefers-color-scheme: light)">
+  <link rel="preload" as="image" href="assets/img/shot-dashboard-1600-dark.webp"
+    imagesrcset="assets/img/shot-dashboard-960-dark.webp 960w, assets/img/shot-dashboard-1600-dark.webp 1600w"
+    imagesizes="(min-width: 1280px) 1000px, 84vw" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="assets/css/site.css">
   <script>
     document.documentElement.classList.add('js');
@@ -45,13 +48,13 @@
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "Threads 程式碼儲存器",
-    "alternateName": "Threads Code Saver",
+    "name": "Threadkeep",
+    "alternateName": ["Threads 程式碼儲存器", "Threads Code Saver"],
     "applicationCategory": "BrowserApplication",
     "operatingSystem": "Google Chrome, Microsoft Edge, Brave, Opera, Arc",
     "description": "在 Threads 點「取得內嵌程式碼」時，自動存下官方內嵌碼、內文、作者、發文時間與標籤的開源瀏覽器擴充功能。",
-    "url": "https://scorpio-meow.github.io/Threads-embedded-code/",
-    "sameAs": "https://github.com/Scorpio-meow/Threads-embedded-code",
+    "url": "https://scorpio-meow.github.io/Threadkeep/",
+    "sameAs": "https://github.com/Scorpio-meow/Threadkeep",
     "license": "https://opensource.org/licenses/MIT",
     "isAccessibleForFree": true,
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TWD" },
@@ -66,7 +69,7 @@
     <div class="container site-nav__inner">
       <a class="brand" href="#top">
         <img class="brand__mark" src="assets/img/mascot-320.webp" alt="" width="320" height="334">
-        <span class="brand__name">Threads 程式碼儲存器</span>
+        <span class="brand__name">Threadkeep</span>
       </a>
       <nav class="site-nav__menu" id="site-menu" aria-label="主要導覽" data-menu>
         <a href="#how">運作方式</a>
@@ -77,7 +80,7 @@
         <a class="site-nav__menu-install" href="#install">安裝擴充功能</a>
       </nav>
       <div class="site-nav__actions">
-        <a class="icon-btn" href="https://github.com/Scorpio-meow/Threads-embedded-code" aria-label="GitHub 原始碼">
+        <a class="icon-btn" href="https://github.com/Scorpio-meow/Threadkeep" aria-label="GitHub 原始碼">
           <svg class="icon" aria-hidden="true">
             <use href="assets/icons.svg#i-github-logo"></use>
           </svg>
@@ -112,7 +115,7 @@
         </h1>
         <div class="hero__row">
           <p class="hero__lead hero__in" style="--i: 1">
-            Threads 程式碼儲存器是免費開源的 Chromium 擴充功能：在貼文選單點「取得內嵌程式碼」，內嵌碼、內文、作者與發文時間就自動存進你的瀏覽器。
+            Threadkeep 是免費開源的 Chromium 擴充功能：在貼文選單點「取得內嵌程式碼」，內嵌碼、內文、作者與發文時間就自動存進你的瀏覽器。
           </p>
           <div class="hero__actions hero__in" style="--i: 2">
             <a class="btn btn--primary btn--lg" href="#install">
@@ -121,7 +124,7 @@
                 <use href="assets/icons.svg#i-arrow-right"></use>
               </svg>
             </a>
-            <a class="btn btn--ghost btn--lg" href="https://github.com/Scorpio-meow/Threads-embedded-code">
+            <a class="btn btn--ghost btn--lg" href="https://github.com/Scorpio-meow/Threadkeep">
               <svg class="icon" aria-hidden="true">
                 <use href="assets/icons.svg#i-github-logo"></use>
               </svg>
@@ -133,15 +136,29 @@
       <div class="hero__field" data-chapter="accent">
         <figure class="container hero__visual">
           <div class="hero__stage">
-            <img class="shot hero__dashboard" src="assets/img/shot-dashboard-1600.webp"
-              srcset="assets/img/shot-dashboard-960.webp 960w, assets/img/shot-dashboard-1600.webp 1600w"
-              sizes="(min-width: 1280px) 1000px, 84vw" width="1600" height="1000" fetchpriority="high"
-              alt="控制面板：左側是全文搜尋、排序篩選與標籤統計，右側是已儲存貼文的卡片，其中兩篇已勾選">
-            <img class="shot hero__popup" src="assets/img/shot-popup-520.webp"
-              srcset="assets/img/shot-popup-520.webp 520w, assets/img/shot-popup-960.webp 960w"
-              sizes="(min-width: 1280px) 300px, 30vw" width="520" height="650" alt="工具列彈出視窗：搜尋框、排序與篩選選單，以及匯出、匯入按鈕">
-            <img class="hero__toast" src="assets/img/ui-notification.webp" width="206" height="130"
-              alt="Threads 頁面右上角跳出的「內嵌程式碼已儲存」提示">
+            <picture>
+              <source media="(prefers-color-scheme: dark)" data-dark-source
+                srcset="assets/img/shot-dashboard-960-dark.webp 960w, assets/img/shot-dashboard-1600-dark.webp 1600w"
+                sizes="(min-width: 1280px) 1000px, 84vw">
+              <img class="shot hero__dashboard" src="assets/img/shot-dashboard-1600.webp"
+                srcset="assets/img/shot-dashboard-960.webp 960w, assets/img/shot-dashboard-1600.webp 1600w"
+                sizes="(min-width: 1280px) 1000px, 84vw" width="1600" height="1000" fetchpriority="high"
+                alt="控制面板：左側是全文搜尋、排序篩選與標籤統計，右側是已儲存貼文的卡片，其中兩篇已勾選">
+            </picture>
+            <picture>
+              <source media="(prefers-color-scheme: dark)" data-dark-source
+                srcset="assets/img/shot-popup-520-dark.webp 520w, assets/img/shot-popup-960-dark.webp 960w"
+                sizes="(min-width: 1280px) 300px, 30vw">
+              <img class="shot hero__popup" src="assets/img/shot-popup-520.webp"
+                srcset="assets/img/shot-popup-520.webp 520w, assets/img/shot-popup-960.webp 960w"
+                sizes="(min-width: 1280px) 300px, 30vw" width="520" height="650" alt="工具列彈出視窗：搜尋框、排序與篩選選單，以及匯出、匯入按鈕">
+            </picture>
+            <picture>
+              <source media="(prefers-color-scheme: dark)" data-dark-source
+                srcset="assets/img/ui-notification-dark.webp">
+              <img class="hero__toast" src="assets/img/ui-notification.webp" width="206" height="130"
+                alt="Threads 頁面右上角跳出的「內嵌程式碼已儲存」提示">
+            </picture>
             <img class="hero__mascot" src="assets/img/mascot-320.webp"
               srcset="assets/img/mascot-320.webp 320w, assets/img/mascot-640.webp 640w" sizes="160px" width="320"
               height="334" alt="">
@@ -182,15 +199,64 @@
         </header>
         <ol class="stages">
           <li class="stage stage--you" data-reveal style="--i: 0">
-            <h3 class="stage__bar">你打開內嵌對話框</h3>
+            <div class="stage__bar">
+              <h3 class="stage__title">你打開內嵌對話框</h3>
+              <div class="stage__ui" data-ui aria-hidden="true">
+                <div class="ui-post">
+                  <span class="ui-post__author">pinyu.daily</span>
+                  <span class="ui-post__more">⋯</span>
+                </div>
+                <ul class="ui-menu">
+                  <li>儲存</li>
+                  <li>複製連結</li>
+                  <li class="is-picked">取得內嵌程式碼</li>
+                </ul>
+              </div>
+            </div>
             <p class="stage__text">在貼文右上角的「⋯」選單點「取得內嵌程式碼」，就是平常嵌入貼文的步驟。這是你唯一要做的事。</p>
           </li>
           <li class="stage stage--auto" data-reveal style="--i: 1">
-            <h3 class="stage__bar">擴充功能擷取並清洗</h3>
+            <div class="stage__bar">
+              <h3 class="stage__title">擴充功能擷取並清洗</h3>
+              <div class="stage__ui" data-ui aria-hidden="true">
+                <code class="ui-snippet">&lt;blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@pinyu.daily/post/DQx7mK2pLsA"&gt;</code>
+                <dl class="ui-fields">
+                  <div>
+                    <dt>作者</dt>
+                    <dd>pinyu.daily</dd>
+                  </div>
+                  <div>
+                    <dt>內文</dt>
+                    <dd>週末去台南吃了一輪，牛肉湯排了四十分鐘還是值得。</dd>
+                  </div>
+                  <div>
+                    <dt>發文</dt>
+                    <dd>2026年10月21日 下午8:41</dd>
+                  </div>
+                  <div>
+                    <dt>標籤</dt>
+                    <dd class="ui-fields__tags">#台南 #週末</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
             <p class="stage__text">從對話框挑出完整的 <code>&lt;blockquote&gt;</code> 內嵌碼，再擷取內文、作者、發文時間與標籤，順手濾掉介面文字。</p>
           </li>
           <li class="stage stage--done" data-reveal style="--i: 2">
-            <h3 class="stage__bar">存進你的瀏覽器</h3>
+            <div class="stage__bar">
+              <h3 class="stage__title">存進你的瀏覽器</h3>
+              <div class="stage__ui" data-ui aria-hidden="true">
+                <p class="ui-toast">內嵌程式碼已儲存</p>
+                <div class="ui-saved">
+                  <p class="ui-saved__head">已儲存的貼文</p>
+                  <p class="ui-saved__row">
+                    <span class="ui-saved__author">pinyu.daily</span>
+                    <span class="ui-saved__meta">儲存：剛剛</span>
+                  </p>
+                  <p class="ui-saved__text">週末去台南吃了一輪，牛肉湯排了四十分鐘還是值得。</p>
+                </div>
+              </div>
+            </div>
             <p class="stage__text">寫入 <code>chrome.storage.local</code> 並跳出「內嵌程式碼已儲存」。之後從工具列的彈出視窗或全頁控制面板都找得到。</p>
           </li>
         </ol>
@@ -267,7 +333,7 @@
         </div>
         <p class="demo__note" data-reveal style="--i: 3">
           這裡示範的是文字清洗階段。實際擷取時，擴充功能會先在頁面結構中排除時間標籤、作者連結與回覆區塊，再交給這一步處理。
-          <a class="text-link" href="https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/content.js">查看
+          <a class="text-link" href="https://github.com/Scorpio-meow/Threadkeep/blob/main/content.js">查看
             content.js 原始碼</a>
         </p>
         <script type="text/plain" data-demo-sample-text="zh">2天
@@ -331,8 +397,12 @@ just now</script>
             <article class="tabs__panel cap" role="tabpanel" id="cap-preview" aria-labelledby="cap-tab-preview"
               tabindex="0">
               <div class="cap__media cap__media--top">
-                <img src="assets/img/shot-preview.webp" width="1040" height="1026" loading="lazy"
-                  alt="即時預覽視窗的「原生內嵌預覽」分頁：以官方寬度載入 @scorpio_meow_1024 的 Threads 貼文卡片，含三張輪播圖，高度剛好貼合；底部是發布時間與複製內嵌代碼按鈕">
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" data-dark-source
+                    srcset="assets/img/shot-preview-dark.webp">
+                  <img src="assets/img/shot-preview.webp" width="1040" height="1026" loading="lazy"
+                    alt="即時預覽視窗的「原生內嵌預覽」分頁：以官方寬度載入 @scorpio_meow_1024 的 Threads 貼文卡片，含三張輪播圖，高度剛好貼合；底部是發布時間與複製內嵌代碼按鈕">
+                </picture>
               </div>
               <h3 class="cap__title">不離開面板就能預覽</h3>
               <p class="cap__text">以 Threads 官方的 658px 寬度載入原生卡片，高度自動貼合內容；也能切到「原始碼與中繼資料」。用 <kbd>←</kbd> <kbd>→</kbd>
@@ -341,8 +411,12 @@ just now</script>
             <article class="tabs__panel cap" role="tabpanel" id="cap-queue" aria-labelledby="cap-tab-queue" tabindex="0"
               hidden>
               <div class="cap__media">
-                <img src="assets/img/ui-progress.webp" width="636" height="288" loading="lazy"
-                  alt="更新進度面板：顯示「更新中 (4/11)」、執行中標籤、進度條與暫停、取消按鈕">
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" data-dark-source
+                    srcset="assets/img/ui-progress-dark.webp">
+                  <img src="assets/img/ui-progress.webp" width="636" height="288" loading="lazy"
+                    alt="更新進度面板：顯示「更新中 (4/11)」、執行中標籤、進度條與暫停、取消按鈕">
+                </picture>
               </div>
               <h3 class="cap__title">在背景逐篇更新</h3>
               <p class="cap__text">重複使用同一個背景分頁依序載入，不會一次開一堆分頁。可以暫停、繼續或取消；結果每 20 篇寫回一次，期間在 Threads 新存的貼文也不會被蓋掉。</p>
@@ -350,17 +424,32 @@ just now</script>
             <article class="tabs__panel cap" role="tabpanel" id="cap-undo" aria-labelledby="cap-tab-undo" tabindex="0"
               hidden>
               <div class="cap__media">
-                <img src="assets/img/ui-undo.webp" width="487" height="284" loading="lazy"
-                  alt="提示列顯示「已刪除 1 篇貼文」與「復原」按鈕">
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" data-dark-source srcset="assets/img/ui-undo-dark.webp">
+                  <img src="assets/img/ui-undo.webp" width="487" height="284" loading="lazy"
+                    alt="提示列顯示「已刪除 1 篇貼文」與「復原」按鈕">
+                </picture>
               </div>
               <h3 class="cap__title">刪錯了還能復原</h3>
               <p class="cap__text">刪除、批次刪除與清除全部之後，8 秒內按「復原」就還原；滑鼠移到提示上倒數就會暫停。</p>
             </article>
             <article class="tabs__panel cap" role="tabpanel" id="cap-tags" aria-labelledby="cap-tab-tags" tabindex="0"
               hidden>
-              <div class="cap__media">
-                <img src="assets/img/ui-tags.webp" width="636" height="408" loading="lazy"
-                  alt="常用標籤雲，#台南 (4) 為目前選取的篩選條件">
+              <div class="cap__media cap__media--video">
+                <video class="cap__video" data-demo-video poster="assets/video/tag-filter-poster.webp"
+                  data-light-poster="assets/video/tag-filter-poster.webp" data-dark-poster="assets/video/tag-filter-dark-poster.webp"
+                  width="1280" height="800" muted loop playsinline preload="none"
+                  aria-label="控制面板操作示範：在常用標籤點 #台南，貼文從 11 篇篩成 4 篇；再點一次取消篩選，回到 11 篇。">
+                  <source media="(prefers-color-scheme: dark)" data-dark-source src="assets/video/tag-filter-dark.mp4"
+                    type="video/mp4">
+                  <source src="assets/video/tag-filter.mp4" type="video/mp4">
+                </video>
+                <button class="btn btn--sm btn--ghost video-toggle" type="button" data-video-toggle hidden>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="assets/icons.svg#i-play"></use>
+                  </svg>
+                  <span data-video-toggle-label>播放示範</span>
+                </button>
               </div>
               <h3 class="cap__title">標籤與作者排行</h3>
               <p class="cap__text">統計最常出現的 15 個標籤與作者，點一下就篩選，再點一次取消。</p>
@@ -368,8 +457,12 @@ just now</script>
             <article class="tabs__panel cap" role="tabpanel" id="cap-expired" aria-labelledby="cap-tab-expired"
               tabindex="0" hidden>
               <div class="cap__media cap__media--top">
-                <img src="assets/img/ui-expired.webp" width="1004" height="751" loading="lazy"
-                  alt="一張貼文卡片，帶有紅色的「已失效 (post-not-found)」標籤">
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" data-dark-source
+                    srcset="assets/img/ui-expired-dark.webp">
+                  <img src="assets/img/ui-expired.webp" width="1004" height="751" loading="lazy"
+                    alt="一張貼文卡片，帶有紅色的「已失效 (post-not-found)」標籤">
+                </picture>
               </div>
               <h3 class="cap__title">貼文消失也知道</h3>
               <p class="cap__text">被刪除、轉私密或轉址的貼文會標成失效並記下原因，恢復後自動解除。</p>
@@ -377,8 +470,11 @@ just now</script>
             <article class="tabs__panel cap" role="tabpanel" id="cap-batch" aria-labelledby="cap-tab-batch" tabindex="0"
               hidden>
               <div class="cap__media">
-                <img src="assets/img/ui-batch.webp" width="1392" height="228" loading="lazy"
-                  alt="批次工具列：已選取 2 篇，右側有更新貼文資料、批次複製 Embed、批次刪除三個按鈕">
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" data-dark-source srcset="assets/img/ui-batch-dark.webp">
+                  <img src="assets/img/ui-batch.webp" width="1392" height="228" loading="lazy"
+                    alt="批次工具列：已選取 2 篇，右側有更新貼文資料、批次複製 Embed、批次刪除三個按鈕">
+                </picture>
               </div>
               <h3 class="cap__title">勾選後批次處理</h3>
               <p class="cap__text">批次更新、複製 Embed 或刪除；三種匯出也只會帶走勾選的貼文。沒勾選時，這些按鈕保持停用，鍵盤也按不到。</p>
@@ -390,7 +486,7 @@ just now</script>
                   <div class="filters__group">
                     <span class="filters__label">篩選</span>
                     <ul class="pill-list">
-                      <li>全部文章</li>
+                      <li>全部貼文</li>
                       <li>按作者</li>
                       <li>按標籤</li>
                       <li>無內文</li>
@@ -468,7 +564,7 @@ just now</script>
                   <use href="assets/icons.svg#i-file-js"></use>
                 </svg><code>threads-featured-data-YYYY-MM-DD.js</code></p>
               <p class="export__desc">每篇貼文一個物件：內嵌碼、連結、作者、內文與標籤。作者會去掉開頭的 <code>@</code>，方便當作鍵值或顯示名稱。</p>
-              <p class="export__use"><strong>適合</strong>Threads-Featured-Posts 的資料來源</p>
+              <p class="export__use"><strong>適合</strong>Threadfolio 的資料來源</p>
             </div>
             <pre class="code"><code data-highlight>const posts = [
     {
@@ -523,17 +619,11 @@ just now</script>
         </p>
         <div class="ecosystem">
           <div class="ecosystem__copy">
-            <h3 class="ecosystem__title" data-reveal>搭配 Threads-Featured-Posts，把收藏變成網站</h3>
+            <h3 class="ecosystem__title" data-reveal>搭配 Threadfolio，把收藏變成網站</h3>
             <p class="ecosystem__text" data-reveal style="--i: 1">把「精選貼文資料」交給這個前端專案當資料來源，就能得到一個可搜尋、可依標籤瀏覽的精選貼文頁。</p>
             <div class="ecosystem__links" data-reveal style="--i: 2">
-              <a class="btn btn--ghost btn--sm" href="https://github.com/Scorpio-meow/Threads-Featured-Posts">
-                <svg class="icon" aria-hidden="true">
-                  <use href="assets/icons.svg#i-github-logo"></use>
-                </svg>
-                專案原始碼
-              </a>
-              <a class="text-link" href="https://scorpio-meow.github.io/Threads-Featured-Posts/">
-                精選貼文展示網站
+              <a class="text-link" href="https://threadfolio.yao921024.workers.dev">
+                Threadfolio 精選貼文網站
                 <svg class="icon" aria-hidden="true">
                   <use href="assets/icons.svg#i-arrow-up-right"></use>
                 </svg>
@@ -542,7 +632,7 @@ just now</script>
           </div>
           <ol class="pipeline" aria-label="資料流向" data-reveal style="--i: 3">
             <li class="pipeline__step">Threads 貼文</li>
-            <li class="pipeline__step pipeline__step--accent">程式碼儲存器</li>
+            <li class="pipeline__step pipeline__step--accent">Threadkeep</li>
             <li class="pipeline__step pipeline__step--file"><code>threads-featured-data-*.js</code></li>
             <li class="pipeline__step">精選貼文網站</li>
           </ol>
@@ -621,14 +711,14 @@ just now</script>
           <p class="section-lead" data-reveal style="--i: 1">以下是幾個關鍵做法的精簡節錄。完整的流程圖、資料結構與注意事項都在 README，AI 工具可以直接讀
             llms.txt。</p>
           <div class="dev__links" data-reveal style="--i: 2">
-            <a class="btn btn--ghost btn--sm" href="https://github.com/Scorpio-meow/Threads-embedded-code#readme">
+            <a class="btn btn--ghost btn--sm" href="https://github.com/Scorpio-meow/Threadkeep#readme">
               <svg class="icon" aria-hidden="true">
                 <use href="assets/icons.svg#i-file-code"></use>
               </svg>
               README 技術文件
             </a>
             <a class="text-link"
-              href="https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/llms.txt">llms.txt</a>
+              href="https://github.com/Scorpio-meow/Threadkeep/blob/main/llms.txt">llms.txt</a>
           </div>
         </header>
         <div class="dev__notes">
@@ -719,7 +809,7 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
             <p class="release" data-manifest-block hidden>
               <span class="release__version">v<span data-manifest-field="version"></span></span>
               <span class="release__label">是目前的版本，看看<a class="text-link"
-                  href="https://github.com/Scorpio-meow/Threads-embedded-code#版本更新紀錄-changelog">更新紀錄</a></span>
+                  href="https://github.com/Scorpio-meow/Threadkeep/blob/main/CHANGELOG.md">更新紀錄</a></span>
             </p>
             <div class="aside-block">
               <h3 class="aside-block__title">支援的瀏覽器</h3>
@@ -743,7 +833,7 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
             <p class="step__text">用 Git 複製專案，或下載 ZIP 後解壓縮。</p>
             <div class="cmd">
               <code class="cmd__text"
-                id="cmd-clone">git clone https://github.com/Scorpio-meow/Threads-embedded-code.git</code>
+                id="cmd-clone">git clone https://github.com/Scorpio-meow/Threadkeep.git</code>
               <button class="cmd__copy" type="button" data-copy="cmd-clone" aria-label="複製 git clone 指令">
                 <svg class="icon icon--copy" aria-hidden="true">
                   <use href="assets/icons.svg#i-copy"></use>
@@ -754,7 +844,7 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
               </button>
             </div>
             <a class="btn btn--ghost btn--sm"
-              href="https://github.com/Scorpio-meow/Threads-embedded-code/archive/refs/heads/main.zip">
+              href="https://github.com/Scorpio-meow/Threadkeep/archive/refs/heads/main.zip">
               <svg class="icon" aria-hidden="true">
                 <use href="assets/icons.svg#i-download-simple"></use>
               </svg>
@@ -782,7 +872,7 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
           </li>
           <li class="step" data-reveal>
             <h3 class="step__title">最後載入未封裝項目</h3>
-            <p class="step__text">點「載入未封裝項目」，選取含有 <code>manifest.json</code> 的專案資料夾，再把「Threads 程式碼儲存器」釘選到工具列。</p>
+            <p class="step__text">點「載入未封裝項目」，選取含有 <code>manifest.json</code> 的專案資料夾，再把「Threadkeep」釘選到工具列。</p>
           </li>
         </ol>
       </div>
@@ -813,7 +903,7 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
           <div class="faq__item" data-reveal>
             <h3 class="faq__q">Threads 改版後抓不到內容怎麼辦？</h3>
             <p class="faq__a">擷取依賴 Threads 網頁的結構與 class 名稱，官方大幅改版時可能暫時失效。請到 <a class="text-link"
-                href="https://github.com/Scorpio-meow/Threads-embedded-code/issues">GitHub Issues</a> 回報，維護者會更新
+                href="https://github.com/Scorpio-meow/Threadkeep/issues">GitHub Issues</a> 回報，維護者會更新
               <code>content.js</code> 裡的選擇器。
             </p>
           </div>
@@ -850,28 +940,27 @@ if (/threads\.com/i.test(value)) score += 100;</code></pre>
             alt="">
           <p class="site-footer__by">由 <a class="text-link" href="https://github.com/Scorpio-meow">Scorpio-meow</a>
             開發與維護，以 <a class="text-link"
-              href="https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/LICENSE">MIT 授權</a> 開源。</p>
+              href="https://github.com/Scorpio-meow/Threadkeep/blob/main/LICENSE">MIT 授權</a> 開源。</p>
         </div>
         <nav class="site-footer__nav" aria-label="頁尾連結">
           <div class="site-footer__col">
             <h2 class="site-footer__heading">專案</h2>
             <ul>
-              <li><a href="https://github.com/Scorpio-meow/Threads-embedded-code">GitHub 原始碼</a></li>
-              <li><a href="https://github.com/Scorpio-meow/Threads-embedded-code#readme">README 技術文件</a></li>
-              <li><a href="https://github.com/Scorpio-meow/Threads-embedded-code/issues">回報問題</a></li>
-              <li><a href="https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/llms.txt">llms.txt</a></li>
+              <li><a href="https://github.com/Scorpio-meow/Threadkeep">GitHub 原始碼</a></li>
+              <li><a href="https://github.com/Scorpio-meow/Threadkeep#readme">README 技術文件</a></li>
+              <li><a href="https://github.com/Scorpio-meow/Threadkeep/issues">回報問題</a></li>
+              <li><a href="https://github.com/Scorpio-meow/Threadkeep/blob/main/llms.txt">llms.txt</a></li>
             </ul>
           </div>
           <div class="site-footer__col">
             <h2 class="site-footer__heading">相關專案</h2>
             <ul>
-              <li><a href="https://github.com/Scorpio-meow/Threads-Featured-Posts">Threads-Featured-Posts</a></li>
-              <li><a href="https://scorpio-meow.github.io/Threads-Featured-Posts/">精選貼文展示網站</a></li>
+              <li><a href="https://threadfolio.yao921024.workers.dev">Threadfolio 精選貼文網站</a></li>
             </ul>
           </div>
         </nav>
       </div>
-      <p class="site-footer__wordmark" aria-hidden="true">Threads 程式碼儲存器</p>
+      <p class="site-footer__wordmark" aria-hidden="true">Threadkeep</p>
       <div class="site-footer__legal">
         <p>本工具為第三方專案，與 Meta 及 Threads 官方沒有任何關聯。</p>
         <p>圖示來自 <a class="text-link" href="https://phosphoricons.com">Phosphor Icons</a>。</p>

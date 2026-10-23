@@ -1,19 +1,21 @@
 <div align="center">
 
-# Threads 程式碼儲存器 (Threads Code Saver)
+# Threadkeep
 
-**自動擷取、清理、管理與匯出 Threads 貼文中的可嵌入程式碼與中繼資料**
+**自動擷取、清理、管理與匯出 Threads 貼文的內嵌碼與中繼資料**
 
-**[前往介紹頁](https://scorpio-meow.github.io/Threads-embedded-code/)**：功能導覽、互動清洗示範與安裝教學
+舊名「Threads 程式碼儲存器」(Threads Code Saver)，2.7.0 起改名為 Threadkeep；repo 也從 threads-embedded-code 改名為 Threadkeep
 
-[![Website](https://img.shields.io/badge/Website-GitHub_Pages-D12F35?style=for-the-badge&logo=githubpages&logoColor=white)](https://scorpio-meow.github.io/Threads-embedded-code/)
-[![Version](https://img.shields.io/badge/version-2.6.0-blue?style=for-the-badge)](./manifest.json)
+**[前往介紹頁](https://scorpio-meow.github.io/Threadkeep/)**：功能導覽、互動清洗示範與安裝教學
+
+[![Website](https://img.shields.io/badge/Website-GitHub_Pages-D12F35?style=for-the-badge&logo=githubpages&logoColor=white)](https://scorpio-meow.github.io/Threadkeep/)
+[![Version](https://img.shields.io/badge/version-2.7.0-blue?style=for-the-badge)](./manifest.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](./LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](#技術規格與技術棧)
 [![Platform](https://img.shields.io/badge/platform-Chromium-orange?style=for-the-badge&logo=googlechrome&logoColor=white)](#前置條件與環境需求)
 [![Build](https://img.shields.io/badge/build-zero--build--step-informational?style=for-the-badge)](#技術規格與技術棧)
-[![Companion Repo](https://img.shields.io/badge/Companion_Repo-Threads--Featured--Posts-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Scorpio-meow/Threads-Featured-Posts)
+[![Companion Site](https://img.shields.io/badge/Companion_Site-Threadfolio-8A2BE2?style=for-the-badge&logo=cloudflare&logoColor=white)](https://threadfolio.yao921024.workers.dev)
 
 ---
 
@@ -55,7 +57,7 @@
 - [核心演算法與技術實作細節](#核心演算法與技術實作細節)
   - [1. 頂層文字容器排版擷取演算法](#1-頂層文字容器排版擷取演算法)
   - [2. 嵌入碼對話框權重評分演算法](#2-嵌入碼對話框權重評分演算法)
-  - [3. 標籤擷取與技術關鍵字映射](#3-標籤擷取與技術關鍵字映射)
+  - [3. 標籤擷取與正規化](#3-標籤擷取與正規化)
   - [4. 44 條 UI 雜訊與時間過濾鏈](#4-44-條-ui-雜訊與時間過濾鏈)
   - [5. 非同步循序更新佇列與工作分頁架構](#5-非同步循序更新佇列與工作分頁架構)
   - [6. 即時預覽動態高度自適應通訊](#6-即時預覽動態高度自適應通訊)
@@ -84,44 +86,44 @@
 
 ## 專案簡介與核心價值
 
-Threads 平台上有大量優質的程式設計分享與技術短文，然而官方原生介面未提供程式碼片段的收藏管理、格式化匯出與本地檢索工具。
+Threads 內建的「儲存」只能在 Threads 裡回頭翻看。想把喜歡的貼文嵌進自己的網站、整理成清單或留一份備份，就得一篇篇打開「取得內嵌程式碼」複製，再自己記下內文、作者與發文時間。
 
-「**Threads 程式碼儲存器**」為解決此痛點而生，具備以下核心價值：
+「**Threadkeep**」為解決此痛點而生，具備以下核心價值：
 
 | 核心價值 | 說明 |
 | :--- | :--- |
-| **無感自動擷取** | 只要在貼文點擊「取得內嵌程式碼」，擴充功能即自動在背景完成中繼資料與程式碼提取。 |
-| **原始排版保真** | 採用頂層文字容器分析演算法，完整保留段落換行與程式碼縮排，徹底告別換行被壓平的困擾。 |
+| **無感自動擷取** | 在貼文選單點「取得內嵌程式碼」，內嵌碼、內文、作者、發文時間與標籤就自動存下，不必另外複製。 |
+| **原始排版保真** | 採用頂層文字容器分析演算法，完整保留段落與換行，不會把多行內文壓成一行。 |
 | **多層雜訊過濾** | 內建 44 條過濾正規表達式，自動剝離作者簡介、相對發文時間、輪播計數及平台導覽文字。 |
 | **本機隱私安全** | 資料 100% 留存於瀏覽器本機儲存區，不會上傳到任何伺服器；對外連線僅限 Threads 官方網域（即時預覽與背景更新）及介面字型所用的 Google Fonts，無追蹤、無遙測。 |
-| **靈活跨端複用** | 提供標準 HTML 內嵌碼、JSON 結構化資料、精選 JavaScript 配置檔等三種匯出格式，無縫串接個人網站或筆記庫。 |
+| **靈活跨端複用** | 提供三種匯出，都是內容為 `const posts = [...]` 的 `.js` 檔：「匯出 JS 嵌入代碼」只含內嵌碼（`threads-embed-codes-*.js`），可直接貼進網頁；「匯出精選資料」附上連結、作者、內文與標籤（`threads-featured-data-*.js`），給 Threadfolio 當資料來源；「匯出完整資料」保留發文時間、失效狀態等全部欄位（`threads-full-data-*.js`），用於備份與還原。 |
 
 ---
 
 ## 生態系與關聯專案
 
-本專案作為「**資料擷取與本機管理中樞**」，與前端展示專案 **[Threads-Featured-Posts](https://github.com/Scorpio-meow/Threads-Featured-Posts)** 構成完整的 Threads 內容收藏與公開展示生態系：
+本專案作為「**資料擷取與本機管理中樞**」，與前端展示網站 **[Threadfolio](https://threadfolio.yao921024.workers.dev)** 構成完整的 Threads 內容收藏與公開展示生態系：
 
 | 專案名稱 | 專案定位與職責 | 專案連結 |
 | :--- | :--- | :--- |
-| **Threads 程式碼儲存器** (本專案) | 瀏覽器擴充功能：負責 Threads 貼文智慧擷取、DOM 雜訊清洗、本機儲存、即時預覽與多格式匯出 | [GitHub 專案庫](https://github.com/Scorpio-meow/threads-embedded-code) |
-| **Threads 精選貼文展示** (關聯專案) | 前端展示網站：接收本擴充功能匯出的「精選貼文資料 (threads-featured-data-*.js)」，提供響應式卡片流與展示介面 | [GitHub 專案庫](https://github.com/Scorpio-meow/Threads-Featured-Posts) |
+| **Threadkeep** (本專案) | 瀏覽器擴充功能：負責 Threads 貼文智慧擷取、DOM 雜訊清洗、本機儲存、即時預覽與多格式匯出 | [GitHub 專案庫](https://github.com/Scorpio-meow/Threadkeep) |
+| **Threadfolio** (關聯專案) | 前端展示網站：接收本擴充功能匯出的「精選貼文資料 (threads-featured-data-*.js)」，提供響應式卡片流與展示介面 | [Threadfolio 網站](https://threadfolio.yao921024.workers.dev) |
 
 ### 雙專案協同運作流程
 
 ```
-[在 Threads 瀏覽貼文] ──> [Threads 程式碼儲存器 (擴充功能)]
+[在 Threads 瀏覽貼文] ──> [Threadkeep (擴充功能)]
                                     │
                                     ▼ (點擊「匯出精選資料」)
                     [產出 threads-featured-data-*.js]
                                     │
                                     ▼ (作為資料來源引用)
-                      [Threads-Featured-Posts 前端展示網站]
+                      [Threadfolio 精選貼文網站]
 ```
 
-1. 在日常瀏覽 Threads 時，使用 **Threads 程式碼儲存器** 一鍵收藏優質程式碼與技術筆記。
+1. 在 Threads 看到想留下的貼文時，從貼文選單點「取得內嵌程式碼」，**Threadkeep** 就會把它存進瀏覽器。
 2. 於控制面板中點擊「**匯出精選資料**」，擴充功能會自動去除作者帳號 `@` 前綴並格式化為前端配置物件。
-3. 將匯出的檔案直接提供給 **[Threads-Featured-Posts](https://github.com/Scorpio-meow/Threads-Featured-Posts)** 專案作為資料來源，即刻完成個人技術精選貼文網站的更新與展示。
+3. 將匯出的檔案直接提供給 **[Threadfolio](https://threadfolio.yao921024.workers.dev)** 作為資料來源，即刻完成個人精選貼文網站的更新與展示。
 
 ---
 
@@ -141,8 +143,8 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 
 1. 取得專案原始碼：
    ```bash
-   git clone https://github.com/Scorpio-meow/threads-embedded-code.git
-   cd threads-embedded-code
+   git clone https://github.com/Scorpio-meow/Threadkeep.git
+   cd Threadkeep
    ```
 2. 開啟瀏覽器並進入擴充功能管理頁面：
    - Google Chrome 請於網址列輸入：`chrome://extensions/`
@@ -150,7 +152,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 3. 開啟頁面右上角的「**開發人員模式** (Developer mode)」。
 4. 點擊左上角的「**載入未封裝項目** (Load unpacked)」。
 5. 選取本專案的根目錄（即包含 [manifest.json](./manifest.json) 的資料夾）。
-6. 在瀏覽器工具列的擴充功能圖示清單中，將「Threads 程式碼儲存器」釘選至工具列。
+6. 在瀏覽器工具列的擴充功能圖示清單中，將「Threadkeep」釘選至工具列。
 
 ### 基本操作流程
 
@@ -158,7 +160,7 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 [瀏覽 Threads 貼文] ──> [點擊「...」選單] ──> [選擇「取得內嵌程式碼」]
                                                     │
                                                     ▼
-[資料自動提取並儲存] <── [綠色成功提示浮現] <── [自動攔截嵌入對話框]
+[資料自動提取並儲存] <── [儲存成功通知浮現] <── [自動攔截嵌入對話框]
         │
         ├──> [點擊工具列圖示] ────> 開啟 Popup 彈出面板 (快速檢索 / 排序 / 篩選 / 匯出)
         │
@@ -170,12 +172,12 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 ## 核心功能特性
 
 ### 1. 智慧攔截與安全儲存
-- **點擊委派與對話框偵測**：在 `document` 以捕獲階段掛一個點擊監聽，只有點到「取得內嵌程式碼」時才擷取貼文內容；`MutationObserver` 只負責在 DOM 變動後（每個畫面影格最多一次）檢查是否出現內嵌對話框，不掃描整頁按鈕，也不定時輪詢。
+- **點擊委派與對話框偵測**：在 `document` 以捕獲階段掛一個點擊監聽，只有點到「取得內嵌程式碼」時才擷取貼文內容；`MutationObserver` 只負責在 DOM 變動後（每個畫面影格最多一次）檢查是否出現內嵌對話框，不掃描整頁按鈕。只有在點擊之後，才會每 250ms（`EMBED_DIALOG_POLL_MS`）檢查一次內嵌碼是否出現，最多等 8 秒（`EMBED_DIALOG_TIMEOUT_MS`）。
 - **主動式偵測機制**：透過 `processOpenEmbedDialogs` 函式，即使對話框由非擴充功能按鈕開啟，也能自動解析對話框中的唯讀輸入框並儲存。
 - **上下文保護封裝**：內建 `safeStorageGet` 與 `safeStorageSet`，自動檢查擴充功能執行環境生命週期 (`isExtensionAlive`)，避免擴充功能更新或重載時拋出未捕獲的 `Extension context invalidated` 例外。
 
 ### 2. 頂層排版保留與深層文本清洗
-- **原生排版與換行保留**：使用頂層文字容器 `innerText` 擷取策略，完整保留文章的自然段落換行（`\n`）與 `<br>` 標籤，解決傳統遍歷子節點時將多行內文壓縮為單行空格的問題，並確保同行的 `@提及` 與 `#標籤` 保持排版連貫。
+- **原生排版與換行保留**：使用頂層文字容器 `innerText` 擷取策略，完整保留貼文的自然段落換行（`\n`）與 `<br>` 標籤，解決傳統遍歷子節點時將多行內文壓縮為單行空格的問題，並確保同行的 `@提及` 與 `#標籤` 保持排版連貫。
 - **UI 與時間雜訊深度過濾**：自動識別並清除作者簡介、追蹤者人數、串文數量、相對時間（如「2天」、「1小時」、「剛剛」）、貼文標頭的「已釘選」「作者」標籤以及各類平台引導文字。目前共 44 條規則，涵蓋繁體中文與英文介面。
 - **嚴格排除標頭連結**：精確過濾 `time` 標籤、`a[href*="/post/"]`、`a[href*="/t/"]` 貼文永久連結、`a[href*="/@"]` 作者主頁連結與 `a[href*="/search"]` 主題／熱門話題連結（如「超夯：…」），防止中繼標籤誤混入文章主體。
 - **行內貼圖不影響內文**：內文中夾帶的 GIF 貼圖或表情圖片（`aria-hidden="true"` 的 `img`）不會被視為媒體，整段文字照常擷取；只有含影片、`picture`、`canvas` 或一般圖片的容器才會排除。
@@ -188,9 +190,9 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 | 欄位名稱 | 類型 | 說明 |
 | :--- | :--- | :--- |
 | **貼文內文** | `string` | 經過去除 UI 雜訊與中繼標籤後的純文字（保留完整段落換行） |
-| **發文作者** | `string` | 發文者帳號（格式為 `@username`） |
+| **發文作者** | `string` | 發文者帳號，取自貼文標頭的作者連結文字（通常不含 `@`）；取不到時改用網址中的帳號，仍取不到則為「未知作者」 |
 | **發文時間** | `string` | 包含標準 ISO 8601 時間字串與格式化標題文字 |
-| **標籤清單** | `string[]` | 結合官方 Hashtag 與內文技術關鍵字自動映射的標籤陣列 |
+| **標籤清單** | `string[]` | 結合官方 Hashtag 連結與內文 `#hashtag` 的標籤陣列 |
 | **內嵌代碼** | `string` | Threads 官方原生的標準 `<blockquote>` 嵌入代碼 |
 | **貼文狀態** | `'active' \| 'expired'` | 標記貼文為正常存取中或已失效 |
 
@@ -204,13 +206,13 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 - **全方位快捷鍵與導覽**：支援鍵盤 `ESC` 關閉、左/右方向鍵無縫切換上一篇/下一篇貼文、一鍵複製內嵌碼及直接開啟原文。
 
 ### 5. 背景循序同步與失效監控佇列
-- **循序非同步更新**：點擊「更新貼文資料」時，系統會依照當前篩選與排序後的結果建立佇列（若已勾選貼文，則僅更新勾選項目），並重複使用**同一個背景工作分頁**循序載入，有效避免多開分頁導致的系統卡頓或平台流量限制。
+- **循序非同步更新**：點擊「更新貼文資料」時，系統會依照當前篩選與排序後的結果建立佇列（若已勾選貼文，則僅更新目前篩選結果中被勾選的項目；勾選後又被篩掉的貼文不會更新），並重複使用**同一個背景工作分頁**循序載入，有效避免多開分頁導致的系統卡頓或平台流量限制。
 - **寬鬆的安全上限**：每篇的分頁載入與頁面解析合計最多等 60 秒，超過只記為「失敗」、不標記失效，網路較慢的正常貼文不會被誤判；注入腳本以 `MutationObserver` 在頁面渲染時立即檢查（兩次檢查至少間隔 80ms），不受背景分頁的計時器節流影響。
 - **分批寫回**：每處理 20 篇、按下暫停或佇列結束時才寫回一次，而且只寫這幾篇各自的紀錄：先讀取它們目前的內容，只覆蓋發文時間、內文、標籤與失效狀態等欄位，期間被刪除的貼文不會被寫回來，在 Threads 新存的貼文也不受影響。進行中只重繪該篇卡片與統計數字，佇列結束後才更新清單篩選與統計雲。
 - **進度與中斷控制**：即時顯示「更新中 (X/Y)」進度條與百分比動畫，並提供「**暫停 / 繼續**」與「**取消**」功能按鈕。
 - **智慧失效標記與自動恢復**：
   - 若貼文被刪除、轉為私密或發生轉導（`redirected`），系統將自動標記為 `expired` 並記錄原因。
-  - 若頁面確認為不存在或移除（出現 404 或未找到貼文容器 `[data-pressable-container]`），將記錄為 `post-not-found`。
+  - 若頁面文字或標題出現不存在或已移除的訊息（例如「此頁面無法使用」「此串文已被移除」「Page Not Found」），將記錄為 `post-not-found`；只是找不到貼文元素時會等到 60 秒上限後記為失敗，不標記失效。
   - 若下次更新時貼文恢復可存取狀態，系統會自動清除失效標籤並恢復為 `active`。
 - **內嵌可用性檢查**：每篇在背景分頁裡以同源、不帶 Cookie 的請求打一次 `/embed`，結果寫入 `embeddable` 與 `embeddableCheckedAt`。回 HTTP 500（例如只開放登入者觀看的貼文）記為 `false`，回 200 且含 `.Embed` 記為 `true`；逾時、限流或其他回應不寫入，保留上次的結論。必須在 threads.com 的分頁裡檢查，因為擴充功能頁面跨站請求 `/embed` 只會拿到 Threads 的一般頁面殼。在 Threads 儲存新貼文時，`content.js` 也會在背景檢查一次。
 
@@ -220,14 +222,14 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 - **分批渲染長清單**：清單一次只建立 60 張卡片（Popup 為 30 張），捲到接近底部或按「顯示更多」才載入下一批；卡片上的按鈕事件統一由清單容器委派，Dashboard 卡片另以 `content-visibility: auto` 略過畫面外的排版。
 - **跨介面同步**：Popup 與 Dashboard 監聽 `chrome.storage.onChanged`，在 Threads 新存或在另一個介面刪除的貼文會即時反映到清單。事件只帶來有變動的那幾篇；內容和畫面上相同的變動（例如自己寫入引起的事件）會略過，不重複重繪。
 - **搜尋範圍**：比對內文、作者、標籤與貼文連結的路徑（`postLink` 去掉網域後的 `/@作者/post/貼文代碼`），可用帳號或貼文代碼找貼文。每篇的搜尋字串在第一次搜尋時建立並快取，排序也先算好每篇的比較值再排序。
-- **批次勾選管理**：支援全選目前頁面與半選（Indeterminate）狀態顯示；未勾選任何項目時，「更新貼文資料」、「批次複製 Embed 代碼」與「批次刪除」一律維持 `disabled`，滑鼠與鍵盤皆無法觸發。
-- **頁內確認 Modal**：兩個介面的破壞性操作（清除全部、批次刪除、覆寫匯入）全面改用頁內 Modal 二次確認，完全不使用原生 `confirm()`、`alert()` 與 `prompt()`；這對 Popup 尤其關鍵——原生對話框會在 Popup 失焦時連同 Popup 一併關閉並回傳預設值。
+- **批次勾選管理**：Popup 與控制面板的「全選」都會勾選目前篩選結果的全部貼文，包含尚未載入的卡片，並支援半選（Indeterminate）狀態顯示；未勾選任何項目時，「更新貼文資料」、「批次複製 Embed 代碼」與「批次刪除」一律維持 `disabled`，滑鼠與鍵盤皆無法觸發。
+- **頁內確認 Modal**：破壞性操作（清除全部、覆寫匯入，以及控制面板的單篇與批次刪除）全面改用頁內 Modal 二次確認；Popup 沒有批次刪除，單篇刪除不另外確認，改以「復原」提示補救。兩個介面都完全不使用原生 `confirm()`、`alert()` 與 `prompt()`；這對 Popup 尤其關鍵——原生對話框會在 Popup 失焦時連同 Popup 一併關閉並回傳預設值。
 
 ### 7. 多維度分類篩選與彈性排序體系
 系統在 Popup 與 Dashboard 均提供 6 種篩選維度與 6 種排序規則：
 
 - **6 種分類篩選模式**：
-  - `全部文章 (all)`: 顯示資料庫中所有貼文。
+  - `全部貼文 (all)`: 顯示資料庫中所有貼文。
   - `依作者 (author)`: 二級下拉選單動態列出所有作者，精確篩選特定發文者。
   - `依標籤 (tag)`: 二級下拉選單動態列出所有標籤，精確篩選特定技術主題。
   - `無內文 (noContent)`: 快速找出 `content` 為空的貼文（例如純圖片或未成功擷取內文者），便於集中維護。
@@ -246,20 +248,20 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 - **三種專業匯出格式**：簡易版 JS 嵌入碼、精選貼文資料、完整版備份檔案。三者皆會在有勾選項目時**僅匯出勾選的貼文**，未勾選時則匯出目前的篩選結果。
 - **雙來源匯入**：Popup 可選擇「選擇檔案」讀取 `.js` / `.json` 備份，或以「貼上內容」直接貼上匯出檔文字；Dashboard 則透過檔案選擇器匯入。
 - **雙模式智慧匯入**：
-  - **合併資料 (Merge)**：自動比對貼文網址（`postLink`），略過重複項目，僅將新貼文附加至清單尾端。
+  - **合併資料 (Merge)**：以貼文代碼（儲存 key）比對，略過已存在的貼文，匯入檔內的重複項目也只保留一筆；新貼文依儲存時間（`savedAt`）排入清單。
   - **完全覆寫 (Overwrite)**：清空現有資料庫，以匯入檔案內容完全取代；此模式必須再通過一次「確認完全覆寫」對話框才會執行。
 - **兩階段解析**：先以 `JSON.parse` 解析 `const posts = [...]`，失敗時改用正規表達式抽出每段內嵌碼，相容三種匯出格式與標準 JSON 備份。
 
 ### 10. 無障礙設計與可復原操作
-- **完整 Modal 無障礙語意**：所有對話框均具備 `role="dialog"`、`aria-modal="true"` 與標題／描述關聯；開啟時自動聚焦、`Tab` 焦點鎖定於對話框內、`ESC` 可關閉，關閉後焦點自動回到觸發按鈕。
+- **完整 Modal 無障礙語意**：所有對話框均具備 `role="dialog"`、`aria-modal="true"` 與標題關聯，確認與匯入方式對話框另有描述關聯；開啟時自動聚焦、`Tab` 焦點鎖定於對話框內、`ESC` 可關閉，關閉後焦點自動回到觸發按鈕。
 - **可復原的刪除與清除**：單篇刪除、批次刪除與清除全部資料後，會顯示帶有「復原」按鈕的提示（預設 8 秒）；滑鼠移到提示上或鍵盤焦點停在「復原」按鈕時暫停倒數。同一時間僅保留一則復原提示，避免舊快照回捲較新的變更。
-- **即時語音回饋**：Popup、Dashboard 的 Toast 容器與注入 Threads 頁面的通知皆為 live region（一般訊息 `role="status"`、錯誤訊息 `role="alert"`）。一般訊息至少顯示 4 秒、錯誤至少 6 秒，較長的訊息依字數延長（每字約 0.12 秒），滑鼠移到提示上時暫停倒數。
+- **即時語音回饋**：Popup、Dashboard 的 Toast 容器與注入 Threads 頁面的通知皆為 live region。Popup 與 Dashboard 的 Toast 一律為 `role="status"`（錯誤只改變外觀），Threads 頁面上的錯誤通知才改用 `role="alert"`。一般訊息至少顯示 4 秒、錯誤至少 6 秒，較長的訊息依字數延長（每字約 0.12 秒），滑鼠移到提示上時暫停倒數。
 - **清楚的焦點外框**：按鈕與連結的鍵盤焦點以 2px 實線外框標示（淺色 `#2563eb`、深色 `#60a5fa`），與周圍背景的對比至少 4.6:1；輸入框與下拉選單改用內圈 2px 實色（`#1d4ed8`／`#93c5fd`，對比至少 6.5:1）加外圈光暈的雙環，高對比模式下改回系統顏色外框。
 - **深色與高對比模式**：控制面板右上角的「外觀」選單可選跟隨系統、淺色或深色，設定存在 `chrome.storage.local`，Popup 與 Threads 頁面上的通知一併套用；顏色集中定義在 `:root` 的 CSS 變數；Windows 高對比模式（`forced-colors`）下，焦點外框、勾選框、選取狀態與進度條改用系統顏色標示。
 - **可操作的標籤與作者徽章**：統計雲徽章由 `span` 改為 `button` 並標註 `aria-pressed`，可用鍵盤聚焦並切換篩選狀態。
 - **螢幕閱讀器結構**：貼文卡片是清單項目、作者名稱是標題；卡片的勾選框與操作按鈕名稱帶上作者與發文時間（例如「刪除：user174 於 18 小時前發布的貼文」），相對時間另附完整日期時間。搜尋、篩選與勾選後會朗讀結果數量（「找到 5 篇貼文」「已選取 3 篇」）。
 - **焦點不遺失**：點徽章篩選、刪除、復原或背景更新重畫卡片後，焦點留在原控制項，或移到同一位置的下一篇、還原的那篇，不會跳回頁首。
-- **視覺與動態友善**：文字對比度提升至 4.5:1，偏小的點擊目標放大至 24×24px 以上，字級下限拉高到 12px；三份樣式表皆支援 `prefers-reduced-motion: reduce`，在系統要求減少動態時停用轉場動畫。
+- **視覺與動態友善**：文字對比度提升至 4.5:1，偏小的按鈕點擊目標放大至 24×24px 以上（勾選框例外，見 [ACCESSIBILITY.md](./ACCESSIBILITY.md) 的已知限制），字級下限拉高到 12px；三份樣式表皆支援 `prefers-reduced-motion: reduce`，在系統要求減少動態時停用轉場動畫。
 - **輸入防抖**：兩個介面的搜尋框皆加入 180ms debounce，資料量大時輸入不再卡頓。
 
 > [!NOTE]
@@ -290,25 +292,29 @@ Threads 平台上有大量優質的程式設計分享與技術短文，然而官
 ### 專案檔案結構
 
 ```
-threads-embedded-code/
+Threadkeep/
 ├── manifest.json         # 擴充功能設定檔 (Manifest V3 權限與腳本規則)
 ├── article-store.js      # 共用儲存層 (每篇一個 key、舊資料搬移、跨介面同步、標籤合併)
 ├── theme.js              # 外觀設定 (跟隨系統／淺色／深色，Popup 與控制面板共用)
 ├── content.js            # Content Script (DOM 監聽、對話框攔截、文本清洗、資料提取)
 ├── styles.css            # 注入至 Threads 網頁的通知提示樣式
 ├── popup.html            # 瀏覽器工具列彈出視窗 HTML
-├── popup.css             # 彈出視窗樣式表 (深色主題、響應式清單)
+├── popup.css             # 彈出視窗樣式表 (淺色／深色主題、響應式清單)
 ├── popup.js              # 彈出視窗控制邏輯 (搜尋、排序、篩選、頁內 Modal、匯出、匯入)
 ├── dashboard.html        # 完整管理儀表板 HTML (包含即時預覽彈窗、統計看板、批次工具列)
 ├── dashboard.css         # 儀表板樣式表 (Grid 排版、預覽彈窗、動畫轉場、動態降級)
 ├── dashboard.js          # 儀表板控制邏輯 (統計雲、預覽控制器、循序佇列、批次處理、復原機制)
 ├── icons/                # 擴充功能圖示 (16、32、48、128 px)
+├── images/               # 空狀態用的吉祥物圖 (mascot-320.webp)
+├── docs/                 # GitHub Pages 介紹頁 (index.html、互動清洗示範、介面截圖與 assets/video/ 操作示範影片)
 ├── llms.txt              # AI 友善架構與 RAG 快速索引規範文件
 ├── README.md             # 專案說明文件 (本檔案)
+├── CHANGELOG.md          # 版本更新紀錄 (Keep a Changelog 格式)
 ├── CONTRIBUTING.md       # 貢獻指南
 ├── CODE_OF_CONDUCT.md    # 貢獻者行為準則
 ├── SECURITY.md           # 安全政策與漏洞回報方式
 ├── ACCESSIBILITY.md      # 無障礙聲明
+├── LICENSE               # MIT 授權條款
 └── .github/              # Issue 範本 (ISSUE_TEMPLATE/) 與 Pull Request 範本
 ```
 
@@ -317,14 +323,16 @@ threads-embedded-code/
 | 檔案路徑 | 模組層級 | 主要職責與實作內容 |
 | :--- | :--- | :--- |
 | `manifest.json` | 設定層 | 聲明 Manifest V3 規格、儲存與分頁權限、主機比對規則與 CSP 配置。 |
-| `article-store.js` | 儲存層 | 由 content script、Popup 與 Dashboard 共用：決定每篇貼文的儲存 key、搬移舊版 `savedArticles` 陣列、逐篇讀寫與刪除、合併批次更新欄位、把 `chrome.storage.onChanged` 的逐篇變動套用到清單，以及不分大小寫合併標籤統計（`getTagGroups`）。 |
+| `article-store.js` | 儲存層 | 由 content script、Popup 與 Dashboard 共用：決定每篇貼文的儲存 key、搬移舊版 `savedArticles` 陣列、逐篇讀寫與刪除、合併批次更新欄位、把 `chrome.storage.onChanged` 的逐篇變動套用到清單，以及不分大小寫合併標籤統計（`getTagGroups`）。另外存放外觀設定的儲存 key（`THEME_PREFERENCE_KEY`），以及內嵌可用性檢查的共用函式（`getThreadsEmbedPath`、`checkEmbeddable`、`applyEmbeddableResult`、`pickEmbeddableFields`）。 |
 | `theme.js` | 外觀層 | 由 Popup 與控制面板在 `<head>` 載入：先以 `localStorage` 的快取立即套用 `data-theme`，避免載入時閃爍，再讀取 `chrome.storage.local` 的 `themePreference` 並同步各頁面；控制面板的「外觀」選單也由它處理。 |
-| `content.js` | 注入腳本層 | 負責監聽 Threads DOM 變化、攔截內嵌對話框、頂層排版提取與正規表達式文本清洗。 |
+| `content.js` | 注入腳本層 | 負責監聽 Threads DOM 變化、攔截內嵌對話框、頂層排版提取與正規表達式文本清洗，並在 Threads 頁面顯示儲存結果通知、儲存後於背景檢查內嵌可用性；在預覽用的 `/embed` iframe 裡則改為回報卡片高度與載入錯誤給控制面板。 |
 | `styles.css` | 注入樣式層 | 定義顯示於 Threads 頁面之儲存成功/失敗浮動通知外觀、進場動畫、`prefers-reduced-motion` 降級，以及深色與高對比模式樣式。 |
 | `popup.html` / `popup.js` | 快速檢視層 | 提供 480px 寬度的工具列快速面板，支援即時關鍵字查詢、6 種分類、6 種排序、單篇維護、頁內確認／匯入 Modal 與基本匯出。 |
 | `dashboard.html` / `dashboard.js` | 完整管理層 | 全螢幕資料庫中心，提供 Live Preview 即時預覽、批次管理、標籤/作者統計雲、背景更新佇列與可復原的刪除操作。 |
 | `llms.txt` | 規範說明層 | 提供 AI 代理與 RAG 檢索系統快速索引之結構化摘要說明文件。 |
 | `README.md` | 完整文檔層 | 專案主要說明文件，包含完整系統架構、演算法剖析、資料 Schema 與常見問題。 |
+| `CHANGELOG.md` | 完整文檔層 | 各版本的新增、改善、修正與移除項目，格式遵循 Keep a Changelog。 |
+| `docs/` | 介紹頁層 | GitHub Pages 介紹頁，不隨擴充功能載入。互動清洗示範由 `assets/js/cleaner-worker.js` 在 Web Worker 中從 `main` 分支載入 `content.js`，直接呼叫 `cleanExtractedPostContent` 與 `isLikelyThreadsFallbackDescription`；更名或移除這兩個函式會讓示範失效。頁面上的版本資訊同樣從 `main` 分支的 `manifest.json` 讀取。 |
 
 ---
 
@@ -348,13 +356,13 @@ flowchart TD
     end
 
     subgraph PopupView["Popup 彈出面板 (480px)"]
-        H -->|"safeStorageGet (讀取)"| I["popup.js 渲染引擎"]
+        H -->|"loadArticleRecords (讀取)"| I["popup.js 渲染引擎"]
         I --> J["全文搜尋 / 6種排序 / 6種篩選"]
         I --> K["單筆維護 / 快速匯出"]
     end
 
     subgraph DashboardView["Dashboard 全頁控制面板"]
-        H -->|"safeStorageGet (讀取)"| L["dashboard.js 核心引擎"]
+        H -->|"loadArticleRecords (讀取)"| L["dashboard.js 核心引擎"]
         L --> M["標籤雲 / 作者雲統計看板"]
         L --> N["卡片清單與批次管理工具列"]
         L --> O["即時預覽彈窗 (Live Preview Modal)"]
@@ -378,7 +386,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     autonumber
-    participant UI as Dashboard / Popup 控制面板
+    participant UI as Dashboard 控制面板
     participant Queue as 更新佇列控制器
     participant Tab as 背景靜默分頁 (chrome.tabs)
     participant Page as Threads 貼文伺服器
@@ -419,7 +427,7 @@ sequenceDiagram
     participant ThreadsEmbed as Threads 原生內嵌伺服器
 
     User->>Modal: 點擊卡片「即時預覽」或按方向鍵
-    Modal->>Modal: 解析文章 postLink 產生標準 Embed URL
+    Modal->>Modal: 解析貼文 postLink 產生標準 Embed URL
     Modal->>Iframe: 設定 iframe.src = https://www.threads.com/.../embed
     Modal->>Modal: 顯示載入動畫 (Spinner) 並啟動 10 秒逾時計時器
     Iframe->>ThreadsEmbed: 載入原生卡片資源
@@ -456,17 +464,38 @@ sequenceDiagram
    - 排除 Meta AI 引導文案與輪播指示器。
    - 單篇貼文頁的 `threads_post_page_0` 只在有文字時才當作搜尋範圍；Threads 目前把它渲染成空的佔位元素，目標貼文改由永久連結定位。
 3. **頂層去重 (Top-level Deduplication)**：僅保留未被其他候選容器包含的最頂層容器，防止子節點文字重複提取。
-4. **原生排版輸出**：直接調用 `innerText.trim()`，保留 `<br>` 與天然段落換行，最後以 `\n\n` 自然拼接各獨立段落。
+4. **原生排版輸出**：沒有可用的 `threads_post_page_0` 範圍時（目前一律如此），以第一個「回覆…」容器為界，只保留它之前的候選容器。每個頂層容器先複製一份，移除翻譯、「查看原文」與雜訊按鈕後再讀 `innerText`，保留 `<br>` 與天然段落換行。各段經 `cleanExtractedPostContent` 清洗，丟掉整段都是雜訊的內容與重複段落，以 `\n\n` 拼接後再整體清洗一次。
 
 ```javascript
-// 頂層容器過濾虛擬碼
-const topLevelContainers = candidateContainers.filter(container => {
-  return !candidateContainers.some(other => other !== container && other.contains(container));
-});
-const fullText = topLevelContainers
-  .map(el => el.innerText.trim())
-  .filter(Boolean)
-  .join('\n\n');
+const beforeReply = replyBoundary
+  ? candidateContainers.filter(el =>
+    el.compareDocumentPosition(replyBoundary) & Node.DOCUMENT_POSITION_FOLLOWING
+  )
+  : candidateContainers;
+const topContainers = beforeReply.filter(el =>
+  !beforeReply.some(other => other !== el && other.contains(el))
+);
+const candidates = topContainers
+  .map(el => {
+    const clone = el.cloneNode(true);
+    const childButtons = clone.querySelectorAll('button, [role="button"]');
+    for (const btn of childButtons) {
+      const btnText = (btn.innerText || btn.textContent || '').trim();
+      if (
+        isLikelyThreadsFallbackDescription(btnText) ||
+        /^(?:查看|隱藏)?翻譯$/i.test(btnText) ||
+        /^(?:See|Hide)?\s*translation$/i.test(btnText) ||
+        /^查看原文$/i.test(btnText)
+      ) {
+        btn.remove();
+      }
+    }
+    return (clone.innerText || clone.textContent || '').trim();
+  })
+  .map(text => cleanExtractedPostContent(text))
+  .filter(text => text && !isLikelyThreadsFallbackDescription(text))
+  .filter((text, index, array) => array.indexOf(text) === index);
+return cleanExtractedPostContent(candidates.join('\n\n'));
 ```
 
 ### 2. 嵌入碼對話框權重評分演算法
@@ -481,15 +510,15 @@ if (/threads\.com/i.test(value)) score += 100;
 ```
 最後挑選分數最高的內容作為最佳的 `embedCode`，確保 100% 取得包含完整 `blockquote` 的標準內嵌碼。
 
-### 3. 標籤擷取與技術關鍵字映射
+### 3. 標籤擷取與正規化
 
-`extractTags` 由三個來源合併標籤，最後統一正規化並去重：
+`extractTags` 由兩個來源合併標籤，最後統一正規化並去重：
 
 1. **官方 Hashtag 連結**：掃描貼文容器中的 `a[href*="serp_type=tags"]` 與 `a[href*="tag_id="]`，優先取網址中的 `q` 查詢參數，取不到時才退回連結文字，並去除開頭的 `#`。
-2. **內文 Hashtag**：以 `/#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g` 掃出內文中的中英文標籤。
-3. **技術關鍵字映射**：比對 JavaScript、Python、Java、C++、C#、HTML、CSS、SQL、TypeScript、React、Vue、Angular 共 12 組關鍵字（不分大小寫），命中即補上對應標籤。
+2. **內文 Hashtag**：以 `#` 或全形 `＃` 開頭、由任何語言的文字、數字或底線組成，而且至少含一個文字的詞，例如 `#台南美食`、`#ラーメン`、`#라면`、`#café`、`#2024台南燈會`。規則為 `/(?<![\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{N}\p{M}_&\/])[#＃](?![\uFE0F\u20E3])([\p{L}\p{M}\p{N}_]*\p{L}[\p{L}\p{M}\p{N}_]*)/gu`，掃描前會先移除 `http://`、`https://` 與 `www.` 開頭的網址。`#` 前面緊接拉丁、希臘或西里爾字母、數字、底線、`&` 或 `/` 時不算，因此 `example.com/docs#install`、`C#12`、`&#39;` 都不會變成標籤；純數字的 `#1`、`#2024` 與鍵帽表情符號 `#️⃣` 也不算。`#` 前面是中日韓字元時（例如「去吃#台南美食」）照樣算。
+內文沒有 `#` 的詞不會變成標籤。2.7.0 起移除了原本的技術關鍵字映射，它會依內文補上 JavaScript、Python 等 12 個標籤，詳見 [CHANGELOG.md](./CHANGELOG.md)。
 
-最後以 `String.prototype.normalize('NFC')` 統一 Unicode 表示法，再不分大小寫去重並保留第一次出現的寫法，避免同一個中文標籤因組合字元差異而重複計數，也避免內文的 `#javascript` 和關鍵字比對的 `JavaScript` 同時出現。
+最後以 `String.prototype.normalize('NFC')` 統一 Unicode 表示法，再不分大小寫去重並保留第一次出現的寫法，避免同一個中文標籤因組合字元差異而重複計數，也避免官方連結的 `JavaScript` 和內文的 `#javascript` 同時出現。
 
 > [!NOTE]
 > 背景更新佇列注入的 `extractPostInfoFromPage` 不另外保留擷取邏輯，而是直接呼叫 Threads 頁面上 `content.js` 的 `findPostElementFromPostLink`、`extractPostContent` 與 `extractTags`，因此「更新貼文資料」抓到的內文與標籤和存檔時一致。
@@ -578,7 +607,7 @@ for (const article of articlesNeedingUpdate) {
 // finally：關閉工作分頁、寫回剩餘的更新，再整體重繪清單與統計雲
 ```
 
-- **分批合併寫回**：`flushPendingUpdates` 呼叫 `mergeArticleUpdates`，只讀取這批貼文各自的 key，把 `timestamp`、`timestampTitle`、`content`、`tags`、失效狀態與 `timestampUpdatedAt` 套到目前儲存的紀錄上再寫回；已不存在的 key 代表貼文在佇列期間被刪除，會直接略過。中途關閉頁面最多遺失最後未寫回的 19 篇更新結果，重新執行即可補上。
+- **分批合併寫回**：`flushPendingUpdates` 呼叫 `mergeArticleUpdates`，只讀取這批貼文各自的 key，把 `ARTICLE_UPDATE_FIELDS`（`timestamp`、`timestampTitle`、`content`、`tags`、失效狀態、`timestampUpdatedAt`、`embeddable`、`embeddableCheckedAt`）以記憶體中的值套到目前儲存的紀錄上再寫回，記憶體中沒有的欄位會從紀錄刪除；已不存在的 key 代表貼文在佇列期間被刪除，會直接略過。中途關閉頁面最多遺失最後未寫回的 19 篇更新結果，重新執行即可補上。
 - **分頁生命週期**：工作分頁僅在擷取失敗或整個佇列結束（`finally`）時關閉，其餘時間重複使用，避免反覆開關分頁的成本。
 - **安全上限**：`fetchPostInfoWithReusableTab` 以 60 秒（`POST_FETCH_TIMEOUT_MS`）為上限，涵蓋分頁載入與頁面解析；逾時回傳 `null`，記為失敗並關閉工作分頁，不會標記為失效。注入頁面的解析器以 `MutationObserver` 觸發檢查，兩次檢查至少間隔 80ms（`POST_INFO_CHECK_INTERVAL_MS`）。
 
@@ -594,7 +623,7 @@ Threads 不提供內嵌的貼文（已刪除、不公開，或只開放登入的
 
 `content.js` 會注入所有 threads.com 框架，包括其他網站嵌入的 Threads iframe，但只有在直接父視窗是本擴充功能的頁面時才送訊息：以 `location.ancestorOrigins[0]` 的 host 比對 `chrome.runtime.id`，相符才送出，而且 `postMessage` 只指定該來源，不用 `'*'`。其他網站嵌入的 Threads iframe 不會收到 `THREADS_EMBED_RESIZE` 或 `THREADS_EMBED_ERROR`，也就看不出瀏覽器裝了本擴充功能。
 
-儀表板端在驗證來源網域後套用高度，並相容 Threads 官方可能送出的 `MEASURE` 訊息格式：
+儀表板端先驗證來源網域；`THREADS_EMBED_ERROR` 只在 `event.source` 是目前的預覽 iframe 時才處理。高度依序取 `THREADS_EMBED_RESIZE` 的 `height`、官方 `MEASURE` 等格式的 `details.height`（字串會先解析成 JSON），再退回 `height` 或 `scrollHeight`，只套用 100–5000px 之間的值：
 
 ```javascript
 function isAllowedEmbedOrigin(origin) {
@@ -615,16 +644,32 @@ window.addEventListener('message', (event) => {
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch (_) { }
   }
+  const iframe = document.getElementById('previewIframe');
+  if (data && data.type === 'THREADS_EMBED_ERROR') {
+    if (iframe && event.source === iframe.contentWindow) {
+      clearTimeout(previewLoadTimer);
+      setPreviewState('error', '…');
+    }
+    return;
+  }
   if (!data || typeof data !== 'object') return;
 
+  let details = data.details;
+  if (typeof details === 'string') {
+    try { details = JSON.parse(details); } catch (_) { }
+  }
   let targetHeight = 0;
   if (data.type === 'THREADS_EMBED_RESIZE' && data.height) {
-    targetHeight = Number(data.height);            // 由 content.js 量測後回報
-  } else if (data.type === 'MEASURE' && data.details?.height) {
-    targetHeight = Number(data.details.height);    // 相容官方 MEASURE 格式
+    targetHeight = Number(data.height);
+  } else if (details && details.height) {
+    targetHeight = Number(details.height);
+  } else if (data.height) {
+    targetHeight = Number(data.height);
+  } else if (data.scrollHeight) {
+    targetHeight = Number(data.scrollHeight);
   }
-  if (targetHeight > 100 && targetHeight < 5000) {
-    document.getElementById('previewIframe').style.height = `${targetHeight}px`;
+  if (targetHeight > 100 && targetHeight < 5000 && iframe) {
+    iframe.style.height = `${targetHeight}px`;
   }
 });
 ```
@@ -633,7 +678,7 @@ window.addEventListener('message', (event) => {
 
 ## 資料模型與儲存 Schema
 
-每篇貼文是一個 `SavedArticle` 物件，各自存在 `chrome.storage.local` 的一個 key 底下。key 為 `post:` 加上貼文網址中的貼文代碼（例如 `post:DezKX7tE_q9`）；沒有可辨識連結的匯入資料改用 `post:id:<id>`。同一篇貼文（包括 threads.com 與 threads.net 的網址）會對應到同一個 key，再存一次就是覆蓋。各介面讀取後依 `savedAt` 由新到舊排列。
+每篇貼文是一個 `SavedArticle` 物件，各自存在 `chrome.storage.local` 的一個 key 底下。key 為 `post:` 加上貼文網址中的貼文代碼（例如 `post:DezKX7tE_q9`）；沒有可辨識連結的匯入資料改用 `post:id:<id>`。同一篇貼文（包括 threads.com 與 threads.net 的網址）會對應到同一個 key，再存一次會覆蓋整筆紀錄，但保留先前的 `embeddable`／`embeddableCheckedAt`，並在背景重新檢查一次。各介面讀取後依 `savedAt` 由新到舊排列。
 
 > [!NOTE]
 > 2.2.1 以前的版本把所有貼文存成 `savedArticles` 鍵裡的一個陣列。新版第一次開啟 Popup、控制面板或在 Threads 存檔時，會把舊陣列拆成逐篇紀錄：只寫入尚未存在的 key（不覆蓋較新的紀錄），同一篇的重複紀錄保留陣列中較前面（較新）的那筆，讀回確認全部寫入後才刪除 `savedArticles`。搬移後改裝舊版會讀不到資料，若需要降版，請先匯出完整備份再匯入。
@@ -663,10 +708,10 @@ interface SavedArticle {
   /** 貼文純文字內容 (已保留段落換行並清除 UI 雜訊) */
   content: string;
 
-  /** 發文者帳號 (包含 @ 前綴，如 "@username") */
+  /** 發文者帳號，取自作者連結文字 (通常不含 @，如 "username")；取不到時用網址中的帳號，否則為「未知作者」 */
   author: string;
 
-  /** 分類標籤清單 (包含 Hashtag 與技術關鍵字) */
+  /** 分類標籤清單 (官方 Hashtag 連結與內文 #hashtag) */
   tags: string[];
 
   /** 貼文存活狀態 */
@@ -684,13 +729,13 @@ interface SavedArticle {
   /** 發布時間戳記最後更新時間 (ISO 8601) */
   timestampUpdatedAt?: string;
 
-  /** 不帶 Cookie 時 Threads 是否提供內嵌卡片：/embed 回 HTTP 500 為 false，回 200 且含 .Embed 為 true；沒檢查過或檢查不出結論時不存在 */
+  /** 不帶 Cookie 時 Threads 是否提供內嵌卡片：/embed 回 HTTP 500 為 false，回 200 且含 .Embed 為 true；從未得出結論時不存在，之後的檢查沒有結論時保留上次的值 */
   embeddable?: boolean;
 
   /** 最後一次得出 embeddable 結論的時間 (ISO 8601) */
   embeddableCheckedAt?: string;
 
-  /** 匯入來源標記 */
+  /** 匯入來源標記，只有 Popup 匯入 .js 檔時寫入；控制面板匯入與 .json 匯入不寫入 */
   importedFrom?: 'full-data-file' | 'js-embed-file';
 }
 ```
@@ -744,7 +789,7 @@ interface SavedArticle {
 | 格式名稱 | 匯出檔案名稱規範 | 格式結構 | 適用情境與特點 |
 | :--- | :--- | :--- | :--- |
 | **簡易版嵌入碼 (Embed Only)** | `threads-embed-codes-YYYY-MM-DD.js` | `const posts = ['<blockquote>...</blockquote>', ...];` | 專為靜態網頁快速引用設計，已自動移除重複的 script 標籤並轉義引號。 |
-| **精選貼文資料 (Featured Data)** | `threads-featured-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, tags, embeddable?, embeddableCheckedAt? }, ...];` | 專為關聯專案 [Threads-Featured-Posts](https://github.com/Scorpio-meow/Threads-Featured-Posts) 設計，author 欄位自動去除 `@` 前綴以利作為 Key 或展示標籤使用。檢查過內嵌可用性的貼文才帶 `embeddable` 與 `embeddableCheckedAt`；網站只在 `embeddable === false` 且 iframe 載入失敗時改顯示「只限登入者觀看」的說明。 |
+| **精選貼文資料 (Featured Data)** | `threads-featured-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, tags, embeddable?, embeddableCheckedAt? }, ...];` | 專為關聯專案 [Threadfolio](https://threadfolio.yao921024.workers.dev) 設計，author 欄位自動去除 `@` 前綴以利作為 Key 或展示標籤使用。檢查過內嵌可用性的貼文才帶 `embeddable` 與 `embeddableCheckedAt`；網站只在 `embeddable === false` 且 iframe 載入失敗時改顯示「只限登入者觀看」的說明。 |
 | **完整版備份資料 (Full Data)** | `threads-full-data-YYYY-MM-DD.js` | `const posts = [{ embedCode, postLink, author, content, timestamp, timestampTitle, savedAt, tags, status, ... }, ...];` | 包含內文、時間、標籤、失效狀態與內嵌可用性（檢查過才有）等欄位，適用於跨裝置備份、資料遷移與災難還原。不含 `id`，匯入時會重新產生。 |
 
 ### 匯出檔案範例
@@ -776,7 +821,7 @@ const posts = [
     {
         "embedCode": "<blockquote class=\"text-post-media\" ...>...</blockquote>",
         "postLink": "https://www.threads.com/@user/post/abc123xyz",
-        "author": "@user",
+        "author": "user",
         "content": "完整貼文內容...",
         "timestamp": "2026-05-29T02:00:00.000Z",
         "timestampTitle": "2026年5月29日 上午10:00",
@@ -837,10 +882,10 @@ const posts = [
 | :--- | :--- |
 | **開啟即時預覽** | 點擊貼文卡片下方的「即時預覽」按鈕。 |
 | **切換預覽分頁** | 在預覽視窗工具列點擊「原生內嵌預覽」或「原始碼與中繼資料」；預覽寬度固定為官方標準 658px，高度自動貼合貼文內容。 |
-| **批次操作** | 勾選個別卡片左上角核取方塊，或點擊工具列「全選目前頁面」；未勾選時三個批次按鈕皆為停用狀態，勾選後即可使用「更新貼文資料」、「批次複製 Embed」與「批次刪除」。 |
+| **批次操作** | 勾選個別卡片左上角核取方塊，或點擊工具列的「全選」勾選目前篩選結果的全部貼文（包含尚未載入的卡片）；未勾選時三個批次按鈕皆為停用狀態，勾選後即可使用「更新貼文資料」、「批次複製 Embed」與「批次刪除」。 |
 | **依標籤/作者篩選** | 點擊側邊欄標籤雲或作者雲中的任一徽章，即可快速套用篩選；再次點擊即取消。 |
-| **多維度分類與排序** | 透過頂部下拉選單切換 6 種分類篩選（如無內文、失效貼文）與 6 種排序規則。 |
-| **背景同步更新** | 點擊側邊欄「更新貼文資料」可更新目前篩選結果；若已勾選貼文則改用批次工具列的「更新貼文資料」，僅更新勾選項目。執行中可隨時「暫停/繼續」或「取消」。 |
+| **多維度分類與排序** | 透過側邊欄「整理與篩選」的下拉選單切換 6 種分類篩選（如無內文、失效貼文）與 6 種排序規則。 |
+| **背景同步更新** | 側邊欄與批次工具列的「更新貼文資料」行為相同：有勾選時只更新目前篩選結果中被勾選的貼文，沒有勾選時更新整個篩選結果。執行中可隨時「暫停/繼續」或「取消」。 |
 | **自選範圍匯出** | 先勾選欲匯出的貼文，再點擊任一匯出按鈕，即只匯出勾選項目；未勾選時匯出目前篩選結果。 |
 | **復原誤刪** | 單篇刪除、批次刪除與清除全部後，畫面下方中央的提示會出現「復原」按鈕，預設 8 秒內點擊即可還原；滑鼠移到提示上或焦點停在按鈕上時暫停倒數。 |
 | **匯入資料** | Popup 點「匯入」後可選擇讀取檔案或直接貼上內容；Dashboard 點「匯入資料檔案」選擇備份檔，接著選擇合併或覆寫。 |
@@ -897,6 +942,7 @@ const posts = [
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | 社群行為準則與檢舉方式 |
 | [SECURITY.md](./SECURITY.md) | 支援版本、私密漏洞回報管道與回報範圍 |
 | [ACCESSIBILITY.md](./ACCESSIBILITY.md) | 無障礙目標、已知限制與障礙回報方式 |
+| [CHANGELOG.md](./CHANGELOG.md) | 各版本的新增、改善、修正與移除項目 |
 
 ### 開發與修改流程
 
@@ -904,8 +950,8 @@ const posts = [
 
 ```bash
 # 複製專案庫
-git clone https://github.com/Scorpio-meow/threads-embedded-code.git
-cd threads-embedded-code
+git clone https://github.com/Scorpio-meow/Threadkeep.git
+cd Threadkeep
 
 # 直接在瀏覽器擴充功能頁面載入未封裝項目，即可開始偵錯與開發
 ```
@@ -922,205 +968,7 @@ cd threads-embedded-code
 
 ## 版本更新紀錄 (Changelog)
 
-本專案嚴格遵循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/) 格式規範。
-
-### [2.6.0] - 2026-10-23
-
-#### 新增
-- 內嵌可用性檢查：「更新貼文資料」與在 Threads 儲存貼文時，會以同源、不帶 Cookie 的請求檢查 Threads 是否提供這篇的內嵌卡片，結果存成 `embeddable` 與 `embeddableCheckedAt`。回 HTTP 500 記為 `false`，回 200 且含 `.Embed` 記為 `true`，其他情況不寫入。精選格式與完整備份都會匯出這兩個欄位（檢查過才有），匯入時保留；精選貼文網站據此對只開放登入者觀看的貼文顯示具體說明。
-
-### [2.5.0] - 2026-10-23
-
-#### 改善
-- 介面改為無邊框：Popup、控制面板與 Threads 頁面的通知改用相差 1%–3% 明度的底色分層（淺色 `#f5f5f3`／`#fcfcfb`，深色 `#0b0b0a`／`#151515`／`#1a1a19`／`#20201e`），不再使用純黑；文字與陰影改成同一組暖灰，按鈕、卡片與輸入框拿掉框線、漸層與浮起陰影，只剩對話框、提示與預覽抽屜這類浮層保留陰影。介紹頁同步換成同一組色階。
-- 深色模式的字重全部減 40（例如 400 → 360、800 → 760），避免淺色字在深色底上發脹。為了讓非整百字重生效，介面字型由 Fira Sans 改為可變字型 Manrope 與 Noto Sans TC，Fira Code 改載入可變字重。
-- 搜尋框、下拉選單與文字區聚焦時改用加深的雙環：內圈 2px 實色、外圈淡色光暈，搭配內凹陰影；高對比模式下改用系統顏色外框。
-- 提示訊息與 Threads 頁面的通知改為逐字浮現：每字 90ms 從 `blur(6px)` 轉為清晰，相鄰字錯開 30ms；螢幕閱讀器念的是完整句子，系統要求減少動態時直接整句顯示。介紹頁示範的狀態列也套用同樣效果。
-- 複製內嵌程式碼後，按鈕原地顯示「已複製」，2.5 秒後自動淡回；原本是另外跳出提示。介紹頁的複製按鈕回饋也由 1.8 秒改為 2.5 秒並改成淡入淡出。
-- 控制面板卡片的「展開全文」改用 Grid 的 `0fr → 1fr` 過渡平滑展開與收合，收起時保留前五行並淡出；「篩選數值」選單也改為滑開，不再瞬間出現。
-- 動效分成兩種手感：勾選框與複製成功的勾勾用欠阻尼彈簧（剛度 380、阻尼 18，微彈）；對話框與即時預覽抽屜的進場用過阻尼彈簧（剛度 1200、阻尼 80，不回彈）。
-- 計數、統計數字、時間與進度改用等寬數字（`tabular-nums`），數字變動時不再左右跳動；內文段落加上 `text-wrap: pretty` 避免最後一行只剩一個字；按鈕與連結裡的圖示以 `vertical-align: -0.125em` 對齊文字中線。
-- 介紹頁的介面截圖與分享圖以新樣式和同一批虛構資料重拍；功能特寫改為透明背景，直接落在介紹頁的底色上。
-- `content.js` 只在預覽 iframe 的父視窗是本擴充功能頁面時才送高度與錯誤訊息，並只送往該來源；原本在任何網站的 Threads 內嵌 iframe 裡都會對父頁面送出 `THREADS_EMBED_RESIZE`，可能干擾那些網站，也透露瀏覽器裝了本擴充功能。
-- 即時預覽改從 `www.threads.com` 載入內嵌卡片（原本是 `www.threads.net`），與 Threads 目前的網域一致。Threads 的登入狀態存在 threads.com，改網域後預覽會帶著登入狀態載入：只開放登入者觀看的貼文（例如被列為敏感內容），在已登入 Threads 的瀏覽器裡也能預覽（已在 Comet 實測）。這類貼文的內嵌碼放到一般網站上，只有已登入 Threads、且允許第三方 Cookie 的訪客看得到。
-
-#### 修正
-- 修復 Popup 的「已選取 N 篇」與兩個介面的「篩選數值」選單永遠不會出現：`.is-hidden` 改為 `display: none !important` 後，用 `style.display` 切換的元件被蓋住。
-- 修復控制面板對話框與即時預覽的標題樣式沒有套用：樣式表仍寫 `h4`，標題早已改為 `h2`。
-- 修復控制面板停用中的按鈕在滑鼠移入時底色變成外層背景。
-- 修復即時預覽遇到 Threads 不提供內嵌的貼文（已刪除、不公開，或只開放登入的使用者觀看）時，直接顯示 Meta 的英文錯誤頁「Sorry, something went wrong」：Threads 對這類貼文的 `/embed` 回 HTTP 500，iframe 仍觸發 `load`，預覽被當成載入成功。現在由預覽 iframe 內的 `content.js` 回報，改顯示中文說明，並引導改看「原始碼與中繼資料」或在 Threads 開啟原文。
-
-### [2.4.1] - 2026-10-23
-
-#### 改善
-- 貼文卡片改為清單結構，作者名稱改為標題，螢幕閱讀器可用標題或清單快速鍵逐篇跳；Popup 補上 `header` 與 `main` 區塊，兩個介面的貼文區都補上「貼文列表」標題。
-- 卡片的勾選框與「即時預覽」「查看原文」「複製內嵌代碼」「刪除」按鈕，名稱帶上作者與發文時間（例如「刪除：user174 於 18 小時前發布的貼文」），用 Tab 或元件清單瀏覽時分得出是哪一篇。原本勾選框完全沒有名稱，只會念「核取方塊」。
-- 搜尋、篩選與勾選後朗讀結果，例如「找到 5 篇貼文」「找不到符合的貼文」「已選取 3 篇」。
-- 「18 小時前」這類相對時間另外提供完整日期時間給螢幕閱讀器，滑鼠停留時也會顯示。
-- 按鈕名稱與補充說明分開：控制面板的匯出按鈕只念名稱，說明改成描述；Popup 的三個匯出按鈕念成「匯出：完整備份」；匯入方式念成「合併資料（推薦）」，說明改成描述，不再和名稱連在一起。
-- 展開按鈕改為「展開全文」與「收起全文」，不再同時念出按鈕文字與展開狀態。
-- Popup 中小於 12px 的文字（時間、標籤、小按鈕、匯出說明、推薦標記）提高到 12px，與無障礙聲明的字級下限一致。
-
-#### 修正
-- 修復操作後鍵盤焦點跑回頁首：點標籤雲或作者雲的徽章、點卡片上的標籤、刪除、批次刪除、按「復原」，以及背景更新重畫卡片時，焦點原本會遺失。現在焦點會留在原本的控制項；貼文不見時移到同一位置的下一篇，復原後移到還原的那篇。
-- 修復控制面板的確認與匯入對話框開啟時，焦點有時沒有移進對話框：`.btn` 等元件使用 `transition: all`，對話框切換 `visibility` 時按鈕也跟著轉場，開啟後的第一個畫面仍是隱藏狀態，無法聚焦。對話框中會出現的元件改為只對外觀屬性轉場。
-- 修復淺色模式「即時預覽」按鈕與徽章的文字對比不足（約 3.6:1 至 4.1:1），`--info-color` 改為 `#0369a1`（5.2:1 以上）。
-- 修復搜尋框提供給螢幕閱讀器的名稱與畫面不一致：名稱仍寫「內嵌代碼」，實際搜尋的是貼文連結。
-- 修復即時預覽的內容與程式碼區塊無法用鍵盤捲動：分頁面板與程式碼區塊改為可聚焦；中繼資料的標題由 `h5` 改為 `h3`，表格左欄改為列標題。
-
-### [2.4.0] - 2026-10-23
-
-#### 新增
-- 深色模式：Popup、控制面板與 Threads 頁面的通知預設跟隨作業系統的外觀設定，也可在控制面板右上角的「外觀」選單固定為淺色或深色（新增 `theme.js`，設定存為 `themePreference`）。顏色整理成 `:root` 的 CSS 變數，淺色模式的外觀維持不變，深色配色的文字對比至少 4.5:1。
-- Windows 高對比模式（`forced-colors`）樣式：勾選框、選取中的卡片、目前的篩選徽章與預覽分頁、進度條、停用的按鈕，以及提示與對話框邊框改用系統顏色標示。
-
-#### 改善
-- 提示訊息依字數延長顯示時間：一般訊息至少 4 秒、錯誤至少 6 秒，每字約 0.12 秒；原本一般訊息只有 2.5 秒。
-- 復原提示與一般提示在滑鼠移入時暫停倒數，復原提示在鍵盤焦點停在「復原」按鈕時也會暫停，離開後才繼續。
-- 標籤雲、標籤篩選選單與「標籤總數」改為不分大小寫合併（`React`、`react` 算同一個），以最常見的寫法顯示；點卡片上任一種寫法的標籤，都會選中合併後的篩選項目。
-- 收斂主控台訊息：在 Threads 存檔時只印一行「已儲存／已更新」，不再每次點擊、存檔印出十幾行；警告與錯誤只在真的出問題時出現。
-
-#### 修正
-- 修復鍵盤焦點不易辨識的問題：焦點原本以 `outline: none` 搭配淡藍色光暈呈現，與背景的對比只有約 1.3:1，Windows 高對比模式移除陰影後更完全看不到。改為 2px 實線外框（淺色 `#2563eb`、深色 `#60a5fa`），與背景的對比至少 4.6:1，高對比模式下由系統顏色繪製。
-- 修復「更新貼文資料」與存檔時擷取結果不一致的問題：背景更新原本在 `dashboard.js` 保留一份較舊的擷取邏輯，缺少回覆邊界過濾，會把回覆文字併入內文，純圖片貼文也會存成「Photo by…」說明；改為直接呼叫 Threads 頁面上 `content.js` 的擷取函式，`dashboard.js` 少了約 220 行重複程式。
-- 修復背景更新遇到只有平台提示文字（例如「加入 Threads 即可分享意見」）的頁面時一直等待、直到 60 秒上限才記為失敗的問題；改為依原本的設計標記為 `fallback-summary` 失效。
-- 修復同一篇貼文同時出現大小寫不同的重複標籤（例如 `javascript` 與 `JavaScript`）：標籤改為不分大小寫去重，保留第一次出現的寫法。
-- 修復點擊「取得內嵌程式碼」後固定等 1 秒就讀取對話框，Threads 載入較慢時會先誤報「找不到可儲存的內嵌程式碼」的問題；改為每 250ms 檢查一次、最多等 8 秒，內嵌碼一出現就儲存，逾時才報錯，使用者自行關閉對話框時不報錯。
-- 修復 Threads 端出錯（顯示「發生錯誤。這可能是技術錯誤所導致，我們正努力修復。」）時，擴充功能誤報「找不到內嵌程式碼對話框」的問題；等待期間偵測到 Threads 的錯誤訊息就立即停止，改為提示「Threads 回報錯誤，請稍後再試」。偵測會略過貼文內容與擴充功能自己的通知，避免貼文裡剛好寫到相同字眼時誤判。
-
-#### 移除
-- 移除匯入解析中的 `new Function` 動態求值備援。擴充功能頁面的 CSP 禁止動態求值，這段程式從未成功執行；匯入改為 `JSON.parse` 加正規表達式抽取兩階段，三種匯出格式都不受影響。
-
-### [2.3.0] - 2026-10-23
-
-#### 新增
-- 新增共用儲存層 `article-store.js`，由 content script、Popup 與控制面板共用同一套儲存 key、讀寫與同步邏輯。
-
-#### 改善
-- 儲存改為每篇一個 key（`post:貼文代碼`），取代單一的 `savedArticles` 陣列。在 Threads 存一篇從讀寫全部資料（2,500 篇約 8 MB）降為只寫入約 3 KB；刪除只移除對應的 key；批次更新每 20 篇寫回約 60 KB。
-- 第一次開啟 Popup、控制面板或在 Threads 存檔時自動搬移舊資料：只寫入尚未存在的貼文、合併同一篇的重複紀錄，讀回確認全部寫入後才刪除舊陣列。搬移後改裝舊版會讀不到資料，降版前請先匯出完整備份。
-- 同一篇貼文的 threads.com 與 threads.net 網址視為同一筆，匯入合併時也以此判斷重複。
-- 跨介面同步改為只處理有變動的貼文，移除以 id 清單辨識自己寫入的機制；批次更新寫回時只合併更新欄位，佇列期間被刪除的貼文不會被寫回來。
-- 復原刪除時，不會蓋掉同一篇在復原期間被重新儲存的版本。
-
-### [2.2.1] - 2026-10-23
-
-#### 新增
-- 新增安全政策（`SECURITY.md`）、行為準則（`CODE_OF_CONDUCT.md`）、貢獻指南（`CONTRIBUTING.md`）與無障礙聲明（`ACCESSIBILITY.md`），以及擷取問題、功能異常、無障礙、功能建議四種 Issue 表單與 Pull Request 範本。
-- 宣告 `unlimitedStorage` 權限，解除 `chrome.storage.local` 的 10MB 配額；以每篇約 3–4 KB 計算，原本約兩、三千篇就會寫入失敗。
-- Popup 與 Dashboard 監聽 `chrome.storage.onChanged`，在 Threads 新存或在另一個介面刪除的貼文會即時反映到清單。
-
-#### 改善
-- 清單改為分批渲染：Dashboard 一次建立 60 張卡片、Popup 30 張，捲到接近底部或按「顯示更多」才載入下一批；卡片事件改由清單容器委派，全選與清除選取不再重建整份清單，Dashboard 卡片另加上 `content-visibility: auto`。
-- 搜尋改為比對內文、作者、標籤與貼文連結的路徑（不含網域），並快取每篇的小寫搜尋字串；不再比對 `embedCode`，其中固定的官方樣板會讓「threads」等字命中所有貼文。
-- 排序先算好每篇的比較值再排序，作者排序改用共用的 `Intl.Collator`。
-- 「更新貼文資料」改為每 20 篇（或按下暫停、佇列結束時）合併寫回一次，進行中只重繪該篇卡片與統計數字，不再每篇都寫回全部資料並重建整份清單。
-- 背景更新的頁面解析改以 `MutationObserver` 觸發檢查，取代每 80ms 讀取整頁 `innerText` 的輪詢，不受背景分頁計時器節流影響。
-- Threads 頁面改以 `document` 上單一的點擊委派偵測「取得內嵌程式碼」，不再於每次 DOM 變動時掃描整頁按鈕並查詢樣式與版面，也移除每 5 秒一次的輪詢；內嵌對話框的檢查合併為每個畫面影格最多一次，分頁在背景時暫停。
-- 即時預覽 iframe 的高度回報改為只靠 `ResizeObserver`，量測合併為每個畫面影格最多一次、高度有變化才回傳，移除 8 段延遲重測與媒體載入事件監聽。
-- 擴充功能圖示改為 `icons/` 下 16、32、48、128 px 四種尺寸，取代 4.5 MB 的 2048×2048 `favicon.png`。
-- 從內嵌對話框儲存時，不再重複擷取同一篇貼文的內文。
-
-#### 修正
-- 修復內文夾帶 GIF 貼圖或表情圖片（`aria-hidden` 的 `img`）時整段被當成媒體排除，導致內文空白或退回 `og:description` 的問題。
-- 排除 `a[href*="/search"]` 主題／熱門話題連結的文字，「超夯：…」與主題標籤不再混入內文。
-- 新增「已釘選」「作者」與單獨「·」三條過濾規則，規則數由 41 條增至 44 條。
-- 單篇貼文頁的 `threads_post_page_0` 已變成空的佔位元素，改為只在有文字時才當作搜尋範圍，目標貼文改由永久連結定位。
-- 修復背景更新期間在 Threads 新存的貼文，會被佇列寫回的舊資料覆蓋而遺失的問題；寫回前改為先讀取最新資料再依 `id` 合併。
-- 修復背景更新遇到預期外的頁面時會永遠等待、卡住整個佇列的問題；每篇改為最多等 60 秒，逾時記為失敗、不標記失效。
-- 修復 Dashboard 刪除後按「復原」會連同期間新存的貼文一起蓋掉的問題；復原時改為保留快照之後新增的貼文。
-- 修復取消背景更新後，完成提示仍顯示「資料更新完成」而非「更新已中途停止」的問題。
-
-### [2.2.0] - 2026-09-23
-
-#### 新增
-- 新增 GitHub Pages 介紹頁（`docs/`）：功能導覽、直接執行 `content.js` 清洗函式的互動示範、匯出格式、權限說明與安裝教學；README 頂部提供連結。
-
-#### 修正
-- 更正 README 與 llms.txt 中與實際行為不符的說明：彈出視窗寬度為 480px、復原提示位於畫面下方中央、對外連線僅限 Threads 官方網域與 Google Fonts 字型、完整備份不含 `id`。
-
-#### 移除
-- 移除 `authorUrl` 欄位。介面、搜尋、篩選、統計與三種匯出都未讀取這個值，且可由 `author` 或 `postLink` 推得；新儲存與匯入的貼文不再寫入，舊版本機紀錄可能殘留無人讀取的舊值。
-
-### [2.1.0] - 2026-09-19
-
-#### 新增
-- 實作控制面板即時預覽彈窗 (Live Preview Modal)，支援原生內嵌與原始碼雙分頁檢視。
-- 即時預覽新增實際的「載入中 / 逾時 (10 秒) / 載入失敗」狀態與「重新載入」重試按鈕。
-- 支援鍵盤快捷鍵操作（`ESC` 關閉、左/右方向鍵切換上一篇/下一篇貼文）。
-- 實作背景循序更新佇列之「暫停 / 繼續」與「取消」控制機制。
-- 新增「無內文 (noContent)」分類篩選設定，方便集中檢視與管理無文字描述之貼文。
-- 儀表板批次工具列新增「更新貼文資料」按鈕，可直接更新已勾選的貼文。
-- 三種匯出格式（JS 嵌入碼 / 精選資料 / 完整資料）皆支援僅匯出已勾選的貼文。
-- Popup 新增「選擇檔案 / 貼上內容」雙來源匯入對話框。
-- 單篇刪除、批次刪除與清除全部改為可復原操作，提示列提供 8 秒「復原」按鈕。
-- 所有 Modal 補上 `role="dialog"`、`aria-modal`、焦點鎖定、`ESC` 關閉與焦點還原；統計雲徽章改為 `button` 並標註 `aria-pressed`；Toast 與注入 Threads 頁面的通知改為 live region。
-- 三份樣式表皆加入 `prefers-reduced-motion: reduce` 降級支援。
-
-#### 改善
-- 優化頂層文字容器 `innerText` 排版擷取演算法，解決過往使用 `\s+` 壓平換行導致多行排版遺失的問題，完整保留段落換行與 `<br>` 標籤。
-- 強化發文時間與標頭連結過濾：嚴格排除 `time` 標籤與 `a[href*="/post/"]`、`a[href*="/t/"]` 貼文固定網址節點，徹底杜絕發文時間誤納入內文。
-- 擴充 UI 與時間雜訊正規表達式至 41 條，涵蓋相對時間（如「2天」、「1小時」、「剛剛」）、輪播計數與繁體中文／英文介面文案。
-- 背景更新改為重複使用單一工作分頁，並依目前的勾選或篩選結果決定更新順序與範圍。
-- 移除分頁載入與頁面解析的等待上限，改以 80ms 輪詢直到取得資料或判定失效。
-- 預覽寬度固定為官方標準 658px，高度改由注入 iframe 的 `content.js` 量測 `.Embed` 容器後回報。
-- 搜尋輸入加入 180ms debounce；文字對比度補至 4.5:1，偏小的點擊目標放大至 24×24px 以上，字級下限拉高到 12px。
-- 清理冗餘 CSS 樣式並補齊未定義的 CSS 變數。
-
-#### 修正
-- 修復批次更新時 Toast 訊息堆疊異常，並新增動態進度即時顯示。
-- 修復匯入以原生 `confirm()` 呈現「合併／覆寫」雙選項，導致 `ESC` 與「取消」皆回傳 `false` 而誤觸全量覆寫的問題；改為頁內 Modal 且覆寫需二次確認。
-- 修復儀表板批次操作僅以 `pointer-events` 停用、仍可由鍵盤觸發的問題，改用 `disabled` 屬性。
-- 修復載入逾時的貼文被誤判為已失效與轉導的問題。
-- 修復長貼文預覽被壓縮、短貼文留白，以及預覽容器 17px 捲軸佔位的問題。
-- 補上 Popup 缺漏的 `importFileInput` 元素。
-- 同一時間僅保留單一復原提示，避免舊快照回捲較新的變更。
-- 修正 Popup 與 Dashboard 搜尋框的標籤與提示文字，改為實際比對的欄位（內文、作者、標籤、內嵌代碼），不再提及已移除的程式碼與語言搜尋。
-
-#### 移除
-- **[BREAKING]** 移除 `codeBlocks` 與 `codeCount` 欄位及其程式碼卡片 UI、程式碼搜尋、程式碼複製按鈕與匯入欄位。抽取邏輯在舊儲存流程廢棄後即未接線，新資料一律為空陣列；匯入舊備份不再保留該欄位，程式碼內容亦不再納入搜尋。
-- 移除即時預覽的多裝置寬度切換（480px / 320px / 100%），預覽固定為官方標準 658px。
-- 移除 Popup 與 Dashboard 排序選單中的「程式碼數量」選項與對應邏輯。
-- 移除未被引用的 `refreshAllEmbedCodes`、`batchRegenEmbedCodes` 等函式與冗餘樣式。
-- 移除 Popup 中已無 UI 入口的 `refreshEmbedCode` 與其專用的 `buildThreadsEmbedCode`（對應的「重新產生」按鈕早已從 HTML 移除），並將失去寫入者的 `lastUpdated` 欄位一併從資料結構中移除；匯出與匯入本來就未帶此欄位，僅舊版本機紀錄可能殘留無人讀取的舊值。
-
-#### 安全性
-- 強化控制面板 `window.postMessage` 通訊來源白名單驗證機制，嚴格限定為 `threads.net`、`threads.com` 與 `instagram.com` 官方網域。
-- 修復即時預覽彈窗中繼資料解析渲染時的潛在 DOM XSS 漏洞，全數改用安全文字節點設定。
-
-### [2.0.5] - 2026-07-06
-
-#### 新增
-- 實作 `safeStorageGet` 與 `safeStorageSet` 封裝，防止 context invalidated 後未捕獲的例外中斷腳本執行。
-- 支援 `processOpenEmbedDialogs` 主動偵測機制，即使用戶未透過擴充功能按鈕開啟嵌入對話框也能成功擷取。
-
-#### 改善
-- 擴充過濾規則至 20 種以上的 UI 雜訊模式，並新增英文語系介面的過濾規則。
-- 優化背景併發更新佇列的超時處理與重試邏輯。
-
-#### 修正
-- 修正 `isSameThreadsPostLink` 在特定自訂貼文 URL 格式下的誤判問題。
-- 修正批次刪除完成後，全選核取方塊的半選 (indeterminate) 狀態未正確重置的異常。
-
-### [2.0.0] - 2026-06-21
-
-#### 新增
-- 上線全網頁版儀表板 (Dashboard UI)。
-- 支援三種匯出格式：簡易嵌入碼、精選貼文資料、完整版資料。
-- 支援背景分頁自動更新與失效智慧標記。
-- 新增 Top 15 標籤統計雲與作者統計雲。
-- 實作自訂確認 Modal，全面替換原生 `confirm()`。
-
-#### 改善
-- 嵌入碼對話框掃描改用分數權重演算法，大幅降低誤選率。
-- 全面移除行內樣式，相容瀏覽器嚴格 CSP。
-
-### [1.0.0] - 2026-05-15
-
-#### 新增
-- 首次發布 Threads 程式碼儲存器擴充功能。
-- 支援基本 DOM 監聽與點擊自動儲存至 `chrome.storage.local`。
-- 支援 Popup 檢視面板與基本的單篇刪除功能。
+各版本的新增、改善、修正與移除項目記錄在 [CHANGELOG.md](./CHANGELOG.md)，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)。
 
 ---
 
@@ -1147,7 +995,7 @@ cd threads-embedded-code
 
 <div align="center">
 
-**Threads 程式碼儲存器 (Threads Code Saver)**  
+**Threadkeep**（舊名 Threads 程式碼儲存器）  
 由 [Scorpio-meow](https://github.com/Scorpio-meow) 開發與維護
 
 </div>

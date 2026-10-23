@@ -598,12 +598,10 @@ p {
     gap: 8px;
 }
 
-.empty-state svg {
-    width: 64px;
-    height: 64px;
+.empty-mascot {
+    width: 88px;
+    height: auto;
     margin-bottom: 6px;
-    opacity: 0.22;
-    color: var(--accent-strong);
 }
 
 .empty-state p {

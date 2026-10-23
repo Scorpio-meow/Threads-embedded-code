@@ -119,7 +119,7 @@ async function migrateLegacyArticles() {
     }
   }
   await chrome.storage.local.remove(LEGACY_ARTICLES_KEY);
-  console.log(`[Threads Saver] 已將 ${legacyArticles.length} 筆舊資料搬移為 ${keys.length} 篇（合併 ${legacyArticles.length - keys.length} 筆重複）`);
+  console.log(`[Threadkeep] 已將 ${legacyArticles.length} 筆舊資料搬移為 ${keys.length} 篇（合併 ${legacyArticles.length - keys.length} 筆重複）`);
 }
 async function loadArticleRecords() {
   await migrateLegacyArticles();

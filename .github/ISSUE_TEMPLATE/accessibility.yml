@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        感謝你回報使用上的障礙。目前的支援範圍與已知限制請見 [ACCESSIBILITY.md](https://github.com/Scorpio-meow/Threads-embedded-code/blob/main/ACCESSIBILITY.md)，已列為已知限制的項目也歡迎補充你的使用情境。
+        感謝你回報使用上的障礙。目前的支援範圍與已知限制請見 [ACCESSIBILITY.md](https://github.com/Scorpio-meow/Threadkeep/blob/main/ACCESSIBILITY.md)，已列為已知限制的項目也歡迎補充你的使用情境。
 
   - type: dropdown
     id: area

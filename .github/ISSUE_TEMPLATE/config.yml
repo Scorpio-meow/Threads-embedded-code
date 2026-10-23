@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 回報安全漏洞
-    url: https://github.com/Scorpio-meow/Threads-embedded-code/security/advisories/new
+    url: https://github.com/Scorpio-meow/Threadkeep/security/advisories/new
     about: 安全漏洞請私下回報，不要開公開 Issue。詳見 SECURITY.md。
   - name: 使用說明與常見問題
-    url: https://scorpio-meow.github.io/Threads-embedded-code/#faq
+    url: https://scorpio-meow.github.io/Threadkeep/#faq
     about: 安裝、操作與常見狀況的說明，回報前可以先看看。

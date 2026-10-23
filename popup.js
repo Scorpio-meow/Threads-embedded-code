@@ -380,18 +380,20 @@ function renderArticles({ keepRendered = false } = {}) {
     container.innerHTML = '';
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'currentColor');
-    svg.innerHTML = '<path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>';
-    empty.appendChild(svg);
+    const mascot = document.createElement('img');
+    mascot.className = 'empty-mascot';
+    mascot.src = 'images/mascot-320.webp';
+    mascot.alt = '';
+    mascot.width = 320;
+    mascot.height = 334;
+    empty.appendChild(mascot);
     const msg = document.createElement('p');
-    msg.textContent = allArticles.length === 0 ? '尚未儲存任何程式碼' : '找不到符合的程式碼';
+    msg.textContent = allArticles.length === 0 ? '尚未儲存任何貼文' : '找不到符合的貼文';
     empty.appendChild(msg);
     if (allArticles.length === 0) {
       const help = document.createElement('p');
       help.className = 'empty-help';
-      help.textContent = '在 Threads 含程式碼的文章旁點擊儲存按鈕';
+      help.textContent = '在 Threads 貼文選單點「取得內嵌程式碼」';
       empty.appendChild(help);
     }
     container.appendChild(empty);
@@ -932,7 +934,7 @@ function parseJsEmbedFile(content) {
       const postLink = linkMatch ? linkMatch[1] : '';
       if (postLink) {
         const usernameMatch = postLink.match(/threads\.(?:com)\/@([^\/]+)/);
-        const username = usernameMatch ? `@${usernameMatch[1]}` : '匯入的文章';
+        const username = usernameMatch ? `@${usernameMatch[1]}` : '匯入的貼文';
         const fullEmbedCode = embedCode + '\n<script async src="https://www.threads.com/embed.js"></script>';
         articles.push({
           id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -952,7 +954,7 @@ function parseJsEmbedFile(content) {
 }
 async function clearAllArticles() {
   if (allArticles.length === 0) {
-    showToast('目前沒有文章可以清除');
+    showToast('目前沒有貼文可以清除');
     return;
   }
   const confirmed = await showConfirm(

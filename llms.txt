@@ -1,35 +1,38 @@
-# Threads Code Saver (threads-embedded-code)
+# Threadkeep
 > Lightweight pure front-end browser extension built on Google Chrome Extensions Manifest V3 for automatically capturing, sanitizing, managing, previewing, and exporting Threads post embed codes together with their structured metadata.
 
 ## Core Metadata
-- Project Name: Threads Code Saver
-- Current Version: 2.6.0
+- Project Name: Threadkeep (renamed in 2.7.0; formerly "Threads Code Saver" / 「Threads 程式碼儲存器」). The repository was renamed from `threads-embedded-code` to `Threadkeep` (GitHub redirects the old repository URL; the old GitHub Pages URL does not redirect, so use https://scorpio-meow.github.io/Threadkeep/). Console messages use the `[Threadkeep]` prefix.
+- Current Version: 2.7.0
 - Specification: Google Chrome Extensions Manifest V3
 - Tech Stack: Pure Native JavaScript (ES6+), HTML5, CSS3 Custom Properties (Zero external dependencies, zero compilation/build step)
 - Data Persistence: Browser local storage (chrome.storage.local with the `unlimitedStorage` permission, so the default 10MB quota does not apply; privacy-first). Saved data never leaves the browser; network access is limited to Threads domains (live preview and background updates) plus the Google Fonts stylesheets imported by popup.css and dashboard.css.
-- Accessibility: In-page modals only (no native confirm/alert/prompt), focus trapping, live regions, 4.5:1 contrast, undersized hit targets enlarged to at least 24x24px, 12px minimum font size, prefers-reduced-motion support, system or manually chosen light/dark themes, forced-colors (Windows High Contrast) styles, pausable toasts
+- Accessibility: In-page modals only (no native confirm/alert/prompt), focus trapping, live regions, 4.5:1 contrast, undersized button hit targets enlarged to at least 24x24px (checkboxes are still 16-20px, a known limitation), 12px minimum font size, prefers-reduced-motion support, system or manually chosen light/dark themes, forced-colors (Windows High Contrast) styles, pausable toasts
 - License: MIT ([LICENSE](./LICENSE))
-- Source Repository: https://github.com/Scorpio-meow/threads-embedded-code
-- Companion Showcase Repository: https://github.com/Scorpio-meow/Threads-Featured-Posts (Consumes exported featured post data as its primary dataset)
+- Source Repository: https://github.com/Scorpio-meow/Threadkeep
+- Companion Showcase Site: Threadfolio, https://threadfolio.yao921024.workers.dev (consumes exported featured post data as its primary dataset; its source repository is not public)
 
 ## Core Files
-- manifest.json: Extension configuration manifest declaring Manifest V3 specs, permissions (storage, unlimitedStorage, tabs, scripting), host matches for threads.com and threads.net, `all_frames: true` content script injection (`article-store.js` then `content.js`), and strict CSP headers.
-- theme.js: Theme preference script loaded in the `<head>` of the popup and dashboard; applies the cached `data-theme` immediately, syncs with `chrome.storage.local`, and wires the dashboard's "外觀" select.
-- article-store.js: Shared storage layer loaded by the content script, the popup, and the dashboard. It derives each post's storage key, migrates the legacy `savedArticles` array, reads, writes, and removes individual records, merges batch-update fields into stored records, and applies per-key `chrome.storage.onChanged` events to an in-memory list.
-- content.js: Primary Content Script. On Threads pages it listens for clicks on the "Get embed code" item through a single delegated capture-phase listener, checks for the official embed dialog at most once per animation frame after DOM mutations (no page-wide button scans or periodic polling), intercepts the dialog, and after a click waits up to 8 seconds (`EMBED_DIALOG_TIMEOUT_MS`, checking every 250ms) for the embed code before reporting a missing dialog or empty dialog; if Threads shows its own error message ("發生錯誤…技術錯誤" / "Something went wrong", outside post containers) during that wait, it stops and reports immediately that Threads failed and the post was not saved. It also scores embed candidates, extracts top-level text containers, filters image-only descriptions, and strips UI/timestamp noise. Inside `/embed` iframes it switches to `handleEmbedFrameResize()` and reports the measured `.Embed` height to the parent window.
-- styles.css: Injected notification styles for Threads web pages, including live-region toast styling and prefers-reduced-motion fallbacks.
-- popup.html: 480px width browser toolbar popup markup, including the confirm, import-source, import-paste, and import-mode modals.
-- popup.css: Toolbar popup stylesheet featuring dark theme tokens, responsive card lists, and reduced-motion support.
-- popup.js: Toolbar popup controller supporting debounced keyword search (180ms), 6 sorting rules, 6 filter categories, single-item maintenance, undoable deletion, in-page modals, file/paste import, and selection-aware export.
-- dashboard.html: Full-page management dashboard markup including the Live Preview modal (with loading and error states), statistical clouds, batch action toolbar, and confirmation/import modals.
-- dashboard.css: Dashboard stylesheet containing CSS Grid cards, preview modal layout, transition animations, and reduced-motion support.
-- dashboard.js: Dashboard core controller managing the Live Preview modal, sequential asynchronous update queue (with pause/resume/cancel signals), Top 15 tag/author clouds, batch operations, undo snapshots, and in-page confirmation dialogs.
-- icons/: Extension icons at 16, 32, 48, and 128 px (`icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-128.png`).
-- README.md: Comprehensive Traditional Chinese technical documentation with Mermaid diagrams, schemas, and developer guide.
-- llms.txt: Structured technical specifications for AI agents and LLM/RAG indexing pipelines.
+- [manifest.json](./manifest.json): Extension configuration manifest declaring Manifest V3 specs, permissions (storage, unlimitedStorage, tabs, scripting), host matches for threads.com and threads.net, `all_frames: true` content script injection (`article-store.js` then `content.js`), and strict CSP headers.
+- [theme.js](./theme.js): Theme preference script loaded in the `<head>` of the popup and dashboard; applies the cached `data-theme` immediately, syncs with `chrome.storage.local`, and wires the dashboard's "外觀" select.
+- [article-store.js](./article-store.js): Shared storage layer loaded by the content script, the popup, and the dashboard. It derives each post's storage key, migrates the legacy `savedArticles` array, reads, writes, and removes individual records, merges batch-update fields into stored records, and applies per-key `chrome.storage.onChanged` events to an in-memory list. It also holds the theme storage key (`THEME_PREFERENCE_KEY`, used by theme.js and content.js) and the shared embeddable-check helpers (`getThreadsEmbedPath`, `checkEmbeddable`, `applyEmbeddableResult`, `pickEmbeddableFields`).
+- [content.js](./content.js): Primary Content Script. On Threads pages it listens for clicks on the "Get embed code" item through a single delegated capture-phase listener, checks for the official embed dialog at most once per animation frame after DOM mutations (no page-wide button scans or periodic polling), intercepts the dialog, and after a click waits up to 8 seconds (`EMBED_DIALOG_TIMEOUT_MS`, checking every 250ms) for the embed code before reporting a missing dialog or empty dialog; if Threads shows its own error message ("發生錯誤…技術錯誤" / "Something went wrong", outside post containers) during that wait, it stops and reports immediately that Threads failed and the post was not saved. It also scores embed candidates, extracts top-level text containers, filters image-only descriptions, and strips UI/timestamp noise. Inside `/embed` iframes it switches to `handleEmbedFrameResize()` and reports the measured `.Embed` height to the parent window.
+- [styles.css](./styles.css): Injected notification styles for Threads web pages, including live-region toast styling and prefers-reduced-motion fallbacks.
+- [popup.html](./popup.html): 480px width browser toolbar popup markup, including the confirm, import-source, import-paste, and import-mode modals.
+- [popup.css](./popup.css): Toolbar popup stylesheet featuring light and dark theme tokens, responsive card lists, and reduced-motion support.
+- [popup.js](./popup.js): Toolbar popup controller supporting debounced keyword search (180ms), 6 sorting rules, 6 filter categories, single-item maintenance, undoable deletion, in-page modals, file/paste import, and selection-aware export.
+- [dashboard.html](./dashboard.html): Full-page management dashboard markup including the Live Preview modal (with loading and error states), statistical clouds, batch action toolbar, and confirmation/import modals.
+- [dashboard.css](./dashboard.css): Dashboard stylesheet containing CSS Grid cards, preview modal layout, transition animations, and reduced-motion support.
+- [dashboard.js](./dashboard.js): Dashboard core controller managing the Live Preview modal, sequential asynchronous update queue (with pause/resume/cancel signals), Top 15 tag/author clouds, batch operations, undo snapshots, and in-page confirmation dialogs.
+- [icons/](./icons/): Extension icons at 16, 32, 48, and 128 px (`icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-128.png`).
+- [images/](./images/): `mascot-320.webp`, the scorpion-cat mascot shown in the popup and dashboard empty states (no saved posts, or no posts matching the current filter). It is a copy of `docs/assets/img/mascot-320.webp`.
+- [README.md](./README.md): Comprehensive Traditional Chinese technical documentation with Mermaid diagrams, schemas, and developer guide.
+- [CHANGELOG.md](./CHANGELOG.md): Version history in Traditional Chinese, following Keep a Changelog. The README's changelog section only links here.
+- [llms.txt](./llms.txt): Structured technical specifications for AI agents and LLM/RAG indexing pipelines.
+- [docs/](./docs/): GitHub Pages introduction site, not shipped with the extension. Its interactive cleaning demo (`docs/assets/js/cleaner-worker.js`) fetches `content.js` from the `main` branch inside a Web Worker and calls `cleanExtractedPostContent` and `isLikelyThreadsFallbackDescription` directly, so renaming or removing either function breaks the demo. The version shown on the page is read from the `main` branch's `manifest.json` the same way. Screenshots live in `docs/assets/img/`, each with a `-dark` variant swapped in by `syncThemedImages()` in `site.js`. `docs/assets/video/` holds the muted tag-filter demo loop (`tag-filter.mp4` and `tag-filter-dark.mp4`, with webp posters) for the 「標籤與作者排行」 tab: it autoplays only when visible and when reduced motion is not requested, shows only the poster under reduced motion or without JavaScript, and has a play/pause button.
 
 ## Data Models & Schema
-Each post is one SavedArticle object stored under its own key in `chrome.storage.local`. The key is `post:` plus the post code from the permalink (for example `post:DezKX7tE_q9`); imported records without a recognizable link use `post:id:<id>`. The same post under threads.com and threads.net maps to the same key, so saving it again overwrites the record. Views load all `post:` keys and order them by `savedAt`, newest first.
+Each post is one SavedArticle object stored under its own key in `chrome.storage.local`. The key is `post:` plus the post code from the permalink (for example `post:DezKX7tE_q9`); imported records without a recognizable link use `post:id:<id>`. The same post under threads.com and threads.net maps to the same key, so saving it again overwrites the record, except that the previous `embeddable` and `embeddableCheckedAt` are kept until the background re-check that follows the save. Views load all `post:` keys and order them by `savedAt`, newest first.
 
 Versions up to 2.2.1 stored every post in one array under the `savedArticles` key. The first time the popup or dashboard opens, or the content script saves a post, `migrateLegacyArticles` splits that array into per-post records: it writes only keys that do not exist yet (newer records are never overwritten), keeps the earliest array entry (the newest save) when the same post appears twice, reads the keys back to confirm they were all written, and only then removes `savedArticles`. Older versions cannot read migrated data.
 
@@ -57,10 +60,10 @@ interface SavedArticle {
   /** Sanitized plaintext content preserving natural paragraph line breaks */
   content: string;
 
-  /** Author username handle including @ prefix (e.g., "@username") */
+  /** Author handle from the post header's author link text (normally without @, e.g., "username"), falling back to the username in postLink, then to "未知作者" */
   author: string;
 
-  /** Array of extracted hashtags and keyword tags */
+  /** Tags from official hashtag links and inline #hashtags */
   tags: string[];
 
   /** Post operational status */
@@ -78,13 +81,13 @@ interface SavedArticle {
   /** Timestamp when publication timestamp was last updated (ISO 8601) */
   timestampUpdatedAt?: string;
 
-  /** Whether Threads serves an embed card to a cookieless request: false when /embed answers HTTP 500, true when it answers 200 with a .Embed container; absent when never checked or inconclusive */
+  /** Whether Threads serves an embed card to a cookieless request: false when /embed answers HTTP 500, true when it answers 200 with a .Embed container; absent until a check is conclusive, and later inconclusive checks keep the previous value */
   embeddable?: boolean;
 
   /** When the last conclusive embeddable check ran (ISO 8601) */
   embeddableCheckedAt?: string;
 
-  /** Source format indicator when imported */
+  /** Source format indicator, set only by popup .js imports (dashboard imports and .json imports leave it unset) */
   importedFrom?: 'full-data-file' | 'js-embed-file';
 }
 ```
@@ -116,9 +119,10 @@ interface SavedArticle {
   - Contains `threads.com`: +100 points
 - Selects the highest-scoring candidate to ensure 100% complete blockquote retrieval.
 
-### 3. Tag Extraction & Technology Keyword Mapping
-- `extractTags` merges three sources: official hashtag anchors (`a[href*="serp_type=tags"]`, `a[href*="tag_id="]`, reading the `q` query parameter first and falling back to link text), inline hashtags matched by `/#([a-zA-Z0-9_\u4e00-\u9fa5]+)/g`, and a 12-entry technology keyword map (JavaScript, Python, Java, C++, C#, HTML, CSS, SQL, TypeScript, React, Vue, Angular).
-- All tags are normalized with `String.prototype.normalize('NFC')` and deduplicated case-insensitively, keeping the first spelling (so an inline `#javascript` and the `JavaScript` keyword do not both appear).
+### 3. Tag Extraction & Normalization
+- `extractTags` merges two sources: official hashtag anchors (`a[href*="serp_type=tags"]`, `a[href*="tag_id="]`, reading the `q` query parameter first and falling back to link text), and inline hashtags: a `#` or full-width `＃` followed by letters, combining marks, digits or underscores in any script with at least one letter (`/(?<![\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{N}\p{M}_&\/])[#＃](?![\uFE0F\u20E3])([\p{L}\p{M}\p{N}_]*\p{L}[\p{L}\p{M}\p{N}_]*)/gu`), scanned after removing `http(s)://` and `www.` URLs. A `#` directly after a Latin, Greek or Cyrillic letter, a digit, `_`, `&` or `/` does not start a tag, so URL fragments, `C#12` and `&#39;` are skipped, as are all-digit tags such as `#2024` and the keycap emoji; a `#` right after a CJK character (for example 去吃#台南美食) still counts. Words without a `#` never become tags.
+- Removed in 2.7.0: the 12-entry technology keyword map (JavaScript, Python, Java, C++, C#, HTML, CSS, SQL, TypeScript, React, Vue, Angular) that added tags from plain words in the content. Its patterns were unreliable (`\bC#\b` only matched forms like "C#12"; C++ had no word boundary and matched inside "ABC++"). Posts saved earlier keep those tags until "更新貼文資料" re-extracts them.
+- All tags are normalized with `String.prototype.normalize('NFC')` and deduplicated case-insensitively, keeping the first spelling (so an official `JavaScript` hashtag link and an inline `#javascript` do not both appear).
 - The injected `extractPostInfoFromPage` used by the background update queue keeps no copy of the extraction logic: it calls `findPostElementFromPostLink`, `extractPostContent`, and `extractTags` from the `content.js` instance already running on the Threads page (same isolated world), waiting until that content script is available. Updated content and tags therefore match what saving produces. It still handles not-found detection, datetime lookup (`time[datetime]`, `article:published_time`, JSON-LD), and marks a post `fallback-summary` expired when the post has no datetime or content and `og:description` is a platform placeholder.
 
 ### 4. 44-Rule Noise & Timestamp Filtering Pipeline
@@ -129,16 +133,16 @@ interface SavedArticle {
 - Dual-tab interface supporting Official Embed preview and Raw Source/Metadata inspection.
 - Fixed preview width of 658px (official Threads standard). The multi-device width switcher was removed in 2.1.0.
 - Height adaptation: because the official `/embed` page only posts an untyped numeric string to its parent (indistinguishable from other messages), `content.js` is injected into the preview iframe (`all_frames: true`) and measures the `.Embed` container with a ResizeObserver on that container and on the body's first child (a childList-only MutationObserver re-attaches it when the container is replaced). Measurements are coalesced to at most one per animation frame, and `{ type: 'THREADS_EMBED_RESIZE', height }` is posted to the parent window only when the height changes. When Threads will not embed a post (deleted, private, or limited to logged-in viewers, for example as sensitive content), `/embed` answers HTTP 500 with a Meta error page that still fires the iframe `load` event (the preview loads from `www.threads.com`, where the Threads session lives, so posts limited to logged-in viewers do render in the preview when the browser is logged in to Threads, while on a third-party site only visitors who are logged in to Threads and allow third-party cookies can see them); on an `/embed` page with no `.Embed` container `content.js` posts `{ type: 'THREADS_EMBED_ERROR' }` instead, and the dashboard (after checking that `event.source` is the preview iframe) shows its own error state, hides the error page, and keeps the later `load` event from flipping the state back to ready. `content.js` matches every threads.com frame, including Threads embeds on other websites, but it only posts when its direct parent is one of this extension's pages (the host of `location.ancestorOrigins[0]` must equal `chrome.runtime.id`), and it targets that origin instead of `'*'`, so other sites never receive `THREADS_EMBED_RESIZE` or `THREADS_EMBED_ERROR`. The `Permissions-Policy` console warnings about `attribution-reporting` and `shared-storage` come from Meta's response headers and are unrelated to embed failures.
-- The dashboard validates `event.origin` against `threads.net`, `threads.com`, and `instagram.com`, also accepts the official `MEASURE` payload shape, and applies heights between 100px and 5000px.
+- The dashboard validates `event.origin` against `threads.net`, `threads.com`, and `instagram.com`, and takes the height from `THREADS_EMBED_RESIZE.height`, then `details.height` (the official `MEASURE` shape; a string `details` is JSON-parsed), then a bare `height` or `scrollHeight`, applying only values between 100px and 5000px. `THREADS_EMBED_ERROR` is honored only when `event.source` is the current preview iframe.
 - Explicit load states: loading spinner, 10-second timeout state, and load-failure state, the latter two offering a retry button. Posts without a usable link show a non-retryable message pointing to the Raw Source tab.
 - Keyboard navigation: ESC to close, Left Arrow / Right Arrow for previous/next post navigation.
 
 ### 6. Background Sequential Update Queue
-- Queue scope: the selected posts when any checkbox is checked, otherwise the current filtered and sorted list.
+- Queue scope: the checked posts within the current filtered list when any are checked (checked posts later filtered out are skipped), otherwise the filtered and sorted list. The sidebar and batch-toolbar "更新貼文資料" buttons both call `updateAllTimestamps` and behave the same.
 - Executes updates sequentially inside a single reusable hidden tab (`chrome.tabs.update`) to eliminate rate limiting or high CPU usage. The tab is closed on extraction failure and in the `finally` block once the queue ends.
 - Safety cap: `fetchPostInfoWithReusableTab` waits at most 60 seconds (`POST_FETCH_TIMEOUT_MS`) for navigation plus extraction. A timeout returns `null`, which counts as a failure and closes the worker tab; it never marks the post as expired.
 - Embeddable check: after loading each post, the queue runs `checkEmbeddable` (from `article-store.js`) inside the threads.com worker tab via `chrome.scripting.executeScript`, as a same-origin `fetch` of the post's `/embed` with `credentials: 'omit'`. HTTP 500 sets `embeddable: false`, a 200 response containing `class="Embed"` sets `true`, and anything else (timeout, rate limit, other responses) leaves the previous value alone; conclusive results also set `embeddableCheckedAt`. The check must run in a threads.com tab: a cross-site fetch from an extension page only receives Threads' generic app shell. `content.js` runs the same check once in the background after saving a post. Both fields are in `ARTICLE_UPDATE_FIELDS`, the featured and full exports include them when present (`pickEmbeddableFields`), and imports keep them. The injected extractor runs its check from a `MutationObserver`, at most once per 80ms (`POST_INFO_CHECK_INTERVAL_MS`), so it reacts as soon as the page renders and is not slowed by background-tab timer throttling.
-- Supports pause, resume, and cancellation signals. Results are persisted every 20 posts (`UPDATE_PERSIST_BATCH_SIZE`), when pausing, and when the queue ends. Each write (`mergeArticleUpdates`) reads only the keys of the pending posts, copies the update fields (`timestamp`, `timestampTitle`, `content`, `tags`, expired status fields, `timestampUpdatedAt`) onto the stored records, and skips keys that no longer exist, so posts deleted during the queue are not resurrected and posts saved on Threads meanwhile are untouched. Closing the page mid-run loses at most the last 19 unsaved updates.
+- Supports pause, resume, and cancellation signals. Results are persisted every 20 posts (`UPDATE_PERSIST_BATCH_SIZE`), when pausing, and when the queue ends. Each write (`mergeArticleUpdates`) reads only the keys of the pending posts, copies `ARTICLE_UPDATE_FIELDS` (`timestamp`, `timestampTitle`, `content`, `tags`, expired status fields, `timestampUpdatedAt`, `embeddable`, `embeddableCheckedAt`) from the in-memory records onto the stored records, deleting any of these fields the in-memory record lacks, and skips keys that no longer exist, so posts deleted during the queue are not resurrected and posts saved on Threads meanwhile are untouched. Closing the page mid-run loses at most the last 19 unsaved updates.
 - During the run only the updated card and the statistics are re-rendered; filters, clouds, and the full list refresh once the queue ends.
 - Automatically marks posts as expired on redirect, post-not-found (404/deleted), or platform fallback summary, and restores them to active once accessible again.
 
@@ -157,11 +161,11 @@ interface SavedArticle {
 - The legacy "code count" sorting option was removed in 2.1.0.
 
 ### 8. Accessibility & Recoverable Operations
-- Native `confirm()`, `alert()`, and `prompt()` are never used. Every dialog is an in-page modal with `role="dialog"`, `aria-modal="true"`, labelled title/description, initial focus, Tab focus trapping, ESC dismissal, and focus restoration to the triggering control. This matters most in the MV3 popup, where a native dialog is dismissed together with the popup on blur and returns its default value.
+- Native `confirm()`, `alert()`, and `prompt()` are never used. Every dialog is an in-page modal with `role="dialog"`, `aria-modal="true"`, a labelled title (the confirm and import-mode dialogs also have `aria-describedby`), initial focus, Tab focus trapping, ESC dismissal, and focus restoration to the triggering control. This matters most in the MV3 popup, where a native dialog is dismissed together with the popup on blur and returns its default value.
 - Destructive actions are recoverable: single delete, batch delete, and clear-all show an undo toast (8 seconds by default, `UNDO_TOAST_DURATION_MS`). The countdown pauses while the pointer is over the toast or keyboard focus is on its undo button. Only one undo toast exists at a time, so an older snapshot can never roll back newer changes.
 - Overwrite imports require a second confirmation modal; dismissing it or pressing ESC always cancels.
 - Batch actions use the `disabled` attribute rather than `pointer-events: none`, so keyboard activation is blocked as well.
-- Toast containers and injected Threads notifications are live regions (`role="status"` / `aria-live="polite"`, escalating to `role="alert"` / `assertive` for errors). Regular messages stay at least 4 seconds and errors at least 6 seconds; longer messages get about 120ms per character (`TOAST_DURATION_MS`, `TOAST_ERROR_DURATION_MS`, `TOAST_MS_PER_CHAR`, and the `NOTIFICATION_*` equivalents in content.js). Hovering a toast pauses its countdown. Toast and notification text streams in per character (each grapheme animates from `blur(6px)` and transparent to clear over 90ms with `cubic-bezier(.215,.61,.355,1)`, staggered 30ms); the full sentence sits in a visually hidden span and the animated copy is `aria-hidden`, and reduced motion shows it at once. Copying an embed code shows an in-place "已複製" state on the button (`data-feedback="copied"`, `COPY_FEEDBACK_MS` = 2500) that fades back, and announces the result through `#liveStatus` instead of a toast.
+- Toast containers and injected Threads notifications are live regions. Popup and dashboard toasts stay `role="status"` / `aria-live="polite"` even for errors (errors only add the `toast-error` class); only injected Threads notifications escalate to `role="alert"` / `assertive` for errors. Regular messages stay at least 4 seconds and errors at least 6 seconds; longer messages get about 120ms per character (`TOAST_DURATION_MS`, `TOAST_ERROR_DURATION_MS`, `TOAST_MS_PER_CHAR`, and the `NOTIFICATION_*` equivalents in content.js). Hovering a toast pauses its countdown. Toast and notification text streams in per character (each grapheme animates from `blur(6px)` and transparent to clear over 90ms with `cubic-bezier(.215,.61,.355,1)`, staggered 30ms); the full sentence sits in a visually hidden span and the animated copy is `aria-hidden`, and reduced motion shows it at once. Copying an embed code shows an in-place "已複製" state on the button (`data-feedback="copied"`, `COPY_FEEDBACK_MS` = 2500) that fades back, and announces the result through `#liveStatus` instead of a toast.
 - Tag and author cloud badges are `button` elements with `aria-pressed` reflecting the active filter. Each cloud is a `role="group"` labelled by its title, and re-rendering a cloud refocuses the badge that had focus (matched by `data-filter-key`).
 - Card lists are `role="list"` (set only while cards exist) labelled by a visually hidden "貼文列表" `h2`; each card is a `listitem` whose author is an `h3`. The card checkbox and action buttons have `aria-label`s that include the author and post time (`getArticleLabel`, e.g. "刪除：user174 於 18 小時前發布的貼文"). Relative times ("18 小時前") carry the full date and time in a visually hidden span and in `title`. The "show more" button lives in `#loadMoreContainer` below the list, not inside it.
 - A visually hidden `#liveStatus` region (`role="status"`, `aria-atomic="true"`) announces result counts after user-triggered search and filter changes (`applyFilters({ announceResults: true })`) and the selection count after checkbox, select-all, or clear-selection changes.
@@ -174,7 +178,7 @@ interface SavedArticle {
 - Search matches `content`, `author`, `tags`, and the path part of `postLink` (`/@author/post/CODE`, without the domain), so a handle or post code finds the post. Each post's lowercased search text is cached in a WeakMap and invalidated when the update queue changes that post. Sorting precomputes one key per post and compares author names with a shared `Intl.Collator('zh-TW')`.
 - Both the popup and the dashboard listen to `chrome.storage.onChanged`. Events carry only the changed `post:` keys; `applyStoredArticleChanges` removes deleted records, adds or replaces changed ones, and ignores changes whose value already matches the in-memory record (such as echoes of the page's own writes).
 - Saving on Threads writes a single key (about 3 KB) instead of rewriting the whole collection; deleting removes the matching keys. Opening the popup or dashboard still reads every post.
-- Contrast is raised to 4.5:1, undersized hit targets are enlarged to at least 24x24px, font sizes are floored at 12px, and all three stylesheets honor `prefers-reduced-motion: reduce`.
+- Contrast is raised to 4.5:1, undersized button hit targets are enlarged to at least 24x24px (checkboxes are an exception: 18x18 and 16x16 in the popup, a roughly 30x20 label in the dashboard), font sizes are floored at 12px, and all three stylesheets honor `prefers-reduced-motion: reduce`.
 - Theme: the dashboard's "外觀" select offers system, light, or dark. The choice is stored as `themePreference` in `chrome.storage.local` (absent means follow the system) and mirrored to `localStorage` so `theme.js`, loaded in each page's `<head>`, can set `data-theme` on `<html>` before first paint. The popup and the content script's Threads notifications (via a `data-theme` attribute on the notification) follow the same setting and react to `chrome.storage.onChanged`. Colors are CSS variables on `:root`; dark values apply under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` and under `:root[data-theme="dark"]` (dark text pairs are at least 4.5:1). A `@media (forced-colors: active)` block marks checkboxes, selected cards, the active filter badge and preview tab, the progress bar, disabled buttons, and toast/dialog borders with system colors. Buttons, links, checkboxes and badges show focus with a 2px solid outline (`--focus-color`: `#2563eb` light, `#60a5fa` dark; danger options use the danger color) offset 1-2px from the element, at least 4.6:1 against surrounding backgrounds. Text inputs, selects and textareas use no outline; `--field-focus-ring` draws a double ring instead (a 2px solid inner ring `#1d4ed8` / `#93c5fd`, at least 6.5:1, plus a soft outer halo and an inset shadow), and the `forced-colors` block adds a system-color outline because High Contrast mode drops box shadows. Surfaces are layered by 1-3% luminance steps (`--bg`, `--surface`, `--fill`; light `#f5f5f3`/`#fcfcfb`, dark `#0b0b0a`/`#151515`/`#1a1a19`/`#20201e`) rather than borders, pure black is never used, and components keep `border: 1px solid transparent` so they still show outlines in High Contrast mode. Font weights come from `--fw-regular` … `--fw-heavy`, which drop by 40 in dark mode; the UI fonts (Manrope, Noto Sans TC, Fira Code) are variable so the in-between weights render. Motion uses two springs written as CSS `linear()` curves: `--spring-pop` (stiffness 380, damping 18, slight overshoot) for checkbox ticks and the copy check, and `--spring-snap` (stiffness 1200, damping 80, no overshoot) for dialog and preview-drawer entrances. The dashboard card body collapses with a fixed five-line peek row plus a `0fr` → `1fr` grid row, and the filter-value select slides open the same way. Tag and author clouds have 4px padding so focus outlines are not clipped by their scroll containers.
 
 ## Export & Import Specifications
@@ -188,7 +192,7 @@ All three exports are selection-aware: when posts are checked only those are exp
        '<blockquote class="text-post-media" data-text-post-permalink="...">...</blockquote>'
    ];
    ```
-2. Featured Data: `threads-featured-data-YYYY-MM-DD.js` (Formatted for Threads-Featured-Posts; author without @ prefix; includes `embeddable` and `embeddableCheckedAt` only for posts that have been checked)
+2. Featured Data: `threads-featured-data-YYYY-MM-DD.js` (Formatted for Threadfolio; author without @ prefix; includes `embeddable` and `embeddableCheckedAt` only for posts that have been checked)
    ```javascript
    const posts = [
        {
@@ -200,13 +204,13 @@ All three exports are selection-aware: when posts are checked only those are exp
        }
    ];
    ```
-3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Content, timestamp, tag, and expiry fields. It omits `id`, and import generates a new one.)
+3. Full Backup Data: `threads-full-data-YYYY-MM-DD.js` (Content, timestamp, tag, and expiry fields, plus `embeddable` and `embeddableCheckedAt` for posts that have been checked. It omits `id`, and import generates a new one.)
    ```javascript
    const posts = [
        {
            "embedCode": "...",
            "postLink": "https://www.threads.com/@user/post/...",
-           "author": "@user",
+           "author": "user",
            "content": "...",
            "timestamp": "2026-05-29T02:00:00.000Z",
            "timestampTitle": "May 29, 2026, 10:00 AM",
@@ -224,7 +228,7 @@ All three exports are selection-aware: when posts are checked only those are exp
 ### Import Pipeline
 - Sources: a file picker (`.js` / `.json`) in both surfaces, plus a paste-text dialog in the popup.
 - `.json` files are parsed directly with `JSON.parse` (bare array or `{ "savedArticles": [...] }` wrapper). `.js` files and pasted text go through a two-stage parser: `JSON.parse` on the `const posts = [...]` array (the featured and full exports are JSON) -> regular expression extraction of single-quoted embed codes that contain `data-text-post-permalink` (the embed-only export). No `eval`/`new Function` fallback exists, because the extension page CSP blocks dynamic evaluation.
-- Modes: Merge (deduplicates on `postLink` and appends new posts to the end of the list) or Overwrite (replaces the entire database, gated behind a second confirmation modal).
+- Modes: Merge (deduplicates on the storage key, i.e. the post code, including duplicates inside the imported file, and inserts new posts by `savedAt`) or Overwrite (replaces the entire database, gated behind a second confirmation modal).
 
 ## Security & Content Security Policy (CSP)
 - Permissions: `storage`, `unlimitedStorage`, `tabs`, `scripting`

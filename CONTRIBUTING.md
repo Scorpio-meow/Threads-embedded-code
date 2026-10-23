@@ -1,6 +1,6 @@
 # 貢獻指南
 
-感謝你願意協助改進「Threads 程式碼儲存器」！這份文件說明如何回報問題、提出建議，以及送出 Pull Request 前需要知道的事。
+感謝你願意協助改進「Threadkeep」！這份文件說明如何回報問題、提出建議，以及送出 Pull Request 前需要知道的事。
 
 參與本專案即表示你同意遵守[貢獻者行為準則](./CODE_OF_CONDUCT.md)。
 
@@ -18,7 +18,7 @@
 
 ## 回報問題
 
-請到 [Issues](https://github.com/Scorpio-meow/Threads-embedded-code/issues/new/choose) 選擇對應的範本：
+請到 [Issues](https://github.com/Scorpio-meow/Threadkeep/issues/new/choose) 選擇對應的範本：
 
 | 範本 | 適用情境 |
 | :--- | :--- |
@@ -44,7 +44,7 @@
 
 1. Fork 並複製專案：
    ```bash
-   git clone https://github.com/<你的帳號>/Threads-embedded-code.git
+   git clone https://github.com/<你的帳號>/Threadkeep.git
    ```
 2. 開啟 `chrome://extensions/`（Edge 為 `edge://extensions/`），打開右上角的「開發人員模式」。
 3. 點「載入未封裝項目」，選擇專案根目錄（包含 `manifest.json` 的資料夾）。
@@ -55,6 +55,8 @@
 | :--- | :--- |
 | `manifest.json` | 在擴充功能頁按「重新載入」 |
 | `content.js`、`styles.css` | 在擴充功能頁按「重新載入」，**再重新整理 Threads 分頁**，否則舊的腳本仍在執行 |
+| `article-store.js` | 在擴充功能頁按「重新載入」、重新整理 Threads 分頁，並重新開啟 Popup 與控制面板（三處都會載入它） |
+| `theme.js` | 重新開啟 Popup，並重新整理控制面板分頁 |
 | `popup.*` | 關閉後重新開啟 Popup |
 | `dashboard.*` | 重新整理控制面板分頁 |
 
@@ -68,9 +70,9 @@
 - **嚴格 CSP**：HTML 與注入腳本禁止行內樣式（`style="..."`）與行內事件（`onclick="..."`），事件一律用 `addEventListener` 綁定。
 - **不使用原生對話框**：`confirm()`、`alert()`、`prompt()` 一律改用頁內 Modal。Popup 失焦時原生對話框會連同 Popup 一起關閉並回傳預設值，容易誤觸破壞性操作。
 - **安全渲染**：貼文內文、作者、標籤等來自網頁的字串一律以 `textContent` 或 `escapeHtml` 輸出，連結與 iframe 來源經過 `sanitizeUrl`；`postMessage` 必須驗證來源網域。
-- **無障礙**：新 Modal 需有 `role="dialog"`、`aria-modal="true"`、焦點鎖定與焦點還原；可點擊元素用 `button`，點擊區域至少 24×24px；停用狀態用 `disabled` 屬性，不要只靠 `pointer-events: none`。
+- **無障礙**：新 Modal 需有 `role="dialog"`、`aria-modal="true"`、焦點鎖定與焦點還原；可點擊元素用 `button`，點擊區域至少 24×24px（現有勾選框尚未達到，見 ACCESSIBILITY.md 的已知限制）；停用狀態用 `disabled` 屬性，不要只靠 `pointer-events: none`。
 - **螢幕閱讀器與焦點**：卡片上重複出現的控制項（勾選框、刪除等），`aria-label` 要用 `getArticleLabel` 帶上是哪一篇；重畫清單或卡片時，用 `captureCardFocus`／`restoreCardFocus` 保留焦點，不要讓焦點掉回 `body`；搜尋、篩選這類只改變畫面的結果，用 `announce()` 寫進 `#liveStatus`。對話框內會出現的元件不要用 `transition: all`：遮罩切換 `visibility` 時，子元素若也轉場 `visibility`，開啟後的第一個畫面仍是隱藏狀態，初始聚焦會失敗。
-- **顏色與焦點樣式**：新增顏色時，在樣式表 `:root` 定義 CSS 變數，並在 `@media (prefers-color-scheme: dark)` 區塊補上深色值，文字對比兩種模式都至少 4.5:1；只靠背景色區分的狀態（例如選取、目前的分頁），要在 `@media (forced-colors: active)` 區塊用系統顏色補上邊框。按鈕、連結與勾選框的焦點一律用 `outline: 2px solid var(--focus-color)` 加上 `outline-offset`；搜尋框、下拉選單與文字區這類輸入框不加 `outline`，改用 `box-shadow: var(--field-focus-ring)` 的雙環（內圈 2px 實色、對比至少 3:1），並在 `forced-colors` 區塊補上 `outline`，因為高對比模式會移除陰影。兩種都要確認沒有被 `overflow` 裁切。
+- **顏色與焦點樣式**：新增顏色時，在樣式表 `:root` 定義 CSS 變數，並在 `@media (prefers-color-scheme: dark)` 與 `:root[data-theme="dark"]` 兩個區塊都補上深色值（只補前者時，在「外觀」選單手動選「深色」不會生效），文字對比兩種模式都至少 4.5:1；只靠背景色區分的狀態（例如選取、目前的分頁），要在 `@media (forced-colors: active)` 區塊用系統顏色補上邊框。按鈕、連結與勾選框的焦點一律用 `outline: 2px solid var(--focus-color)` 加上 `outline-offset`；搜尋框、下拉選單與文字區這類輸入框不加 `outline`，改用 `box-shadow: var(--field-focus-ring)` 的雙環（內圈 2px 實色、對比至少 3:1），並在 `forced-colors` 區塊補上 `outline`，因為高對比模式會移除陰影。兩種都要確認沒有被 `overflow` 裁切。
 - **分層與字重**：區塊與元件不畫邊框，靠 `--bg`、`--surface`、`--fill` 這幾階相差 1%–3% 明度的底色分層，不用純黑 `#000`（陰影也用 `rgb(28 28 26 / …)` 或 `rgb(11 11 10 / …)`）。需要在高對比模式下現形的元件保留 `border: 1px solid transparent`。字重一律寫 `var(--fw-regular)` 到 `var(--fw-heavy)`，深色模式會自動減 40；介面字型用可變字型（Manrope、Noto Sans TC、Fira Code），減 40 後才不會被吸附回整百字重。
 - **權限最小化**：新增 `permissions` 或 `host_permissions` 前請先在 Issue 說明理由。
 
@@ -78,7 +80,7 @@
 
 - 擷取邏輯只有 `content.js` 一份。`dashboard.js` 的 `extractPostInfoFromPage` 注入背景分頁後，直接呼叫該分頁上 `content.js` 的 `findPostElementFromPostLink`、`extractPostContent` 與 `extractTags`；重新命名或改變這三個函式的參數時，要一併修改 `extractPostInfoFromPage`。
 - `content.js` 會注入所有 threads.com 框架，包括其他網站上的 Threads 內嵌 iframe。對父視窗送訊息一律先用 `getExtensionParentOrigin()` 確認父視窗是本擴充功能，並把它回傳的來源當成 `postMessage` 的目標，不要用 `'*'`；訊息只放型別與高度，不要放使用者資料，新訊息沿用 `THREADS_EMBED_` 前綴。
-- [GitHub Pages 介紹頁](https://scorpio-meow.github.io/Threads-embedded-code/)的互動示範會直接從 `main` 分支載入 `content.js` 並呼叫這兩個函式。重新命名或移除會讓示範失效，請一併修改 `docs/assets/js/cleaner-worker.js`。
+- [GitHub Pages 介紹頁](https://scorpio-meow.github.io/Threadkeep/)的互動示範會直接從 `main` 分支載入 `content.js` 並呼叫這兩個函式。重新命名或移除會讓示範失效，請一併修改 `docs/assets/js/cleaner-worker.js`。
 
 ## 手動測試清單
 
@@ -98,7 +100,7 @@
 - 新增或修改儲存欄位時，同步更新 README 的[資料模型與儲存 Schema](./README.md#資料模型與儲存-schema)、[llms.txt](./llms.txt)（英文）與匯入匯出模組。
 - 使用者看得到的行為改變，請同步更新 README 對應段落；若介紹頁（`docs/index.html`）有提到，也一併修改。
 - 過濾規則的數量（目前為 44 條）寫在 README 與 llms.txt 裡，增減規則時請一起更新。
-- 版本號與 Changelog 由維護者在發版時整理，PR 不需要修改 `manifest.json` 的 `version`，但請在 PR 說明中寫出這次變更對使用者的影響。
+- 版本號與 [CHANGELOG.md](./CHANGELOG.md) 由維護者在發版時整理，PR 不需要修改 `manifest.json` 的 `version`，但請在 PR 說明中寫出這次變更對使用者的影響。
 
 ## Commit 訊息
 
